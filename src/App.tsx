@@ -1,37 +1,37 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Login from "./features/auth/Login";
+import Dashboard from "./features/user/Dashboard";
+import Profile from "./features/user/Profile";
+import Postes from "./features/user/Postes";
+import Calendar from "./features/user/Calendar";
+import Creation from "./features/user/Creation";
+import SidebarLayout from "./components/layouts/SidebarLayout";
+import { useAuth } from "./hooks/useAuth";
+import Logout from "./features/auth/Logout";
 
 function App() {
-  const [count, setCount] = useState(0);
+  const { user, loading } = useAuth();
+
+  if (loading) return <div>Chargement...</div>;
 
   return (
-    <>
-      <div className="flex justify-center gap-8 my-8">
-        <a href="https://vite.dev" target="_blank" rel="noopener noreferrer">
-          <img src={viteLogo} className="h-20 w-20" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank" rel="noopener noreferrer">
-          <img src={reactLogo} className="h-20 w-20" alt="React logo" />
-        </a>
-      </div>
-      <h1 className="text-4xl font-bold text-center mb-6">Vite + React</h1>
-      <div className="card max-w-md mx-auto p-6 bg-white rounded-lg shadow-md text-center">
-        <button
-          onClick={() => setCount((count) => count + 1)}
-          className="px-6 py-3 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 transition"
-        >
-          count is {count}
-        </button>
-        <p className="mt-4 text-red-700">
-          Edit <code className="bg-gray-200 rounded px-1">src/App.tsx</code> and
-          save to test HMR
-        </p>
-      </div>
-      <p className="text-center mt-8 text-gray-600">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        {user ? (
+          <Route path="/user" element={<SidebarLayout />}>
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="calendar" element={<Calendar />} />
+            <Route path="creation" element={<Creation />} />
+            <Route path="Postes" element={<Postes />} />
+          </Route>
+        ) : (
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        )}
+        <Route path="/logout" element={<Logout />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
