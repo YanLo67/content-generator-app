@@ -32,7 +32,7 @@ const getStatusIcon = (status: string) => {
   return icons[status as keyof typeof icons] || "📄";
 };
 
-export default function PostColumn({ status, posts, onClickPost }: Props) {
+export default function PostKanban({ status, posts, onClickPost }: Props) {
   const colorClasses = getStatusColor(status);
   const icon = getStatusIcon(status);
 
@@ -40,13 +40,11 @@ export default function PostColumn({ status, posts, onClickPost }: Props) {
     <Droppable droppableId={status}>
       {(provided, snapshot) => (
         <div
-          ref={provided.innerRef}
-          {...provided.droppableProps}
-          className={`rounded-xl border-2 p-5 min-h-[400px] flex flex-col transition-all duration-200 shadow-sm hover:shadow-md ${colorClasses} ${
+          className={`rounded-xl border-2 p-5 min-h-[400px] flex flex-col shadow-sm hover:shadow-md relative ${
             snapshot.isDraggingOver
-              ? "border-blue-400 bg-blue-100 scale-105 shadow-lg"
-              : ""
-          }`}
+              ? "border-blue-400 bg-blue-100 shadow-lg"
+              : "transition-all duration-200"
+          } ${colorClasses}`}
         >
           {/* En-tête de la colonne */}
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
@@ -59,8 +57,12 @@ export default function PostColumn({ status, posts, onClickPost }: Props) {
             </span>
           </div>
 
-          {/* Liste des posts */}
-          <div className="space-y-3 flex-1">
+          {/* Container pour les posts avec ref et props */}
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className="space-y-3 flex-1"
+          >
             {posts.map((post, index) => (
               <PostCard
                 key={post.id.toString()}
@@ -85,7 +87,7 @@ export default function PostColumn({ status, posts, onClickPost }: Props) {
 
           {/* Indicateur de zone de drop active */}
           {snapshot.isDraggingOver && (
-            <div className="absolute inset-0 border-2 border-dashed border-blue-400 rounded-xl bg-blue-50 bg-opacity-50 flex items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 border-2 border-dashed border-blue-400 rounded-xl bg-blue-50 bg-opacity-50 flex items-center justify-center pointer-events-none z-10">
               <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                 Déposer ici
               </div>

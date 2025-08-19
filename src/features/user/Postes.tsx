@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import Modal from "../../components/Modal";
-import PostModalContent from "../../components/post/PostPopup";
+import PostUp from "../../components/post/PostPopup";
 import { PostStatus } from "../../constants/postStatus";
 import { DragDropContext, type DropResult } from "@hello-pangea/dnd";
-import PostColumn from "../../components/post/PostColumn";
+import PostKanban from "../../components/post/PostKanban";
 import type { Post } from "../../types/Post";
 
 const STATUSES = [
@@ -87,7 +87,7 @@ export default function Postes() {
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {STATUSES.map((status) => (
-            <PostColumn
+            <PostKanban
               key={status}
               status={status}
               posts={getPostsByStatus(status)}
@@ -99,7 +99,7 @@ export default function Postes() {
 
       <Modal isOpen={!!selectedPost} onClose={() => setSelectedPost(null)}>
         {selectedPost && (
-          <PostModalContent
+          <PostUp
             post={selectedPost}
             userId={user?.id || ""}
             onClose={() => setSelectedPost(null)}

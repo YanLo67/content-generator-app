@@ -7,6 +7,7 @@ import {
   FiCalendar,
   FiUser,
   FiLogOut,
+  FiZap,
 } from "react-icons/fi";
 
 export default function SidebarLayout() {
@@ -26,13 +27,13 @@ export default function SidebarLayout() {
         <div>
           <h1 className="text-2xl font-bold mb-8">ContentGen</h1>
           <nav className="flex flex-col gap-2">
+            <SidebarLink to="/user/creation" label="Création" Icon={FiEdit} />
             <SidebarLink
               to="/user/dashboard"
               label="Tableau de bord"
               Icon={FiHome}
             />
-            <SidebarLink to="/user/creation" label="Création" Icon={FiEdit} />
-            <SidebarLink to="/user/postes" label="Postes" Icon={FiClipboard} />
+            <SidebarLink to="/user/posts" label="Posts" Icon={FiClipboard} />
             <SidebarLink
               to="/user/calendar"
               label="Calendrier"
