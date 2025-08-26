@@ -129,7 +129,7 @@ export default function Creation() {
   return (
     <div className="flex h-full">
       {/* Sidebar avec la liste des posts */}
-      <aside className="w-64 border-r border-gray-200 p-3 overflow-y-auto">
+      <aside className="w-256 border-r border-gray-200 p-3 overflow-y-auto">
         <h3 className="text-xs font-semibold text-gray-600 mb-3 uppercase tracking-wide">
           Mes posts
         </h3>

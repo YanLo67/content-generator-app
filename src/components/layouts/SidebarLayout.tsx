@@ -28,11 +28,7 @@ export default function SidebarLayout() {
           <h1 className="text-2xl font-bold mb-8">ContentGen</h1>
           <nav className="flex flex-col gap-2">
             <SidebarLink to="/user/creation" label="Création" Icon={FiEdit} />
-            <SidebarLink
-              to="/user/dashboard"
-              label="Tableau de bord"
-              Icon={FiHome}
-            />
+
             <SidebarLink to="/user/posts" label="Posts" Icon={FiClipboard} />
             <SidebarLink
               to="/user/calendar"

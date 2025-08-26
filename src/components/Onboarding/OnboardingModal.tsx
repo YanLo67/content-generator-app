@@ -1,99 +1,222 @@
-// components/Onboarding/OnboardingModal.tsx
 import React, { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 
-// Pour la clarté, on définit les types des props
+// Interface for component props
 interface OnboardingModalProps {
   onClose: () => void;
 }
+
+// Internal component for the progress bar
+const Stepper = ({ currentStep }: { currentStep: number }) => {
+  return (
+    <div className="flex items-center gap-2 mb-8">
+      <div
+        className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${
+          currentStep >= 1 ? "bg-blue-600" : "bg-gray-200"
+        }`}
+      ></div>
+      <div
+        className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${
+          currentStep >= 2 ? "bg-blue-600" : "bg-gray-200"
+        }`}
+      ></div>
+      <div
+        className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${
+          currentStep >= 3 ? "bg-blue-600" : "bg-gray-200"
+        }`}
+      ></div>
+    </div>
+  );
+};
 
 export default function OnboardingModal({ onClose }: OnboardingModalProps) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    job_title: "",
+    job: "",
     goal: "",
     audience: "",
-    tone: "tutoiement", // Valeur par défaut
+    tone: "tutoiement",
   });
 
+  const [newTheme, setNewTheme] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedThemes, setGeneratedThemes] = useState<string[]>([]);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleNext = () => setStep((prev) => prev + 1);
-  const handleBack = () => setStep((prev) => prev - 1);
-
-  // La soumission se fait uniquement à la fin
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-
-    // Ici, on enverra les données finales à Supabase
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        job_title: formData.job_title,
-        goal: formData.goal,
-        audience: formData.audience,
-        tone: formData.tone,
-        onboarding_completed: true, // Étape cruciale !
-      })
-      .eq("id", user.id);
-
-    if (error) {
-      alert("Erreur lors de la mise à jour du profil.");
+    setIsSaving(true);
+    try {
+      const functionUrl = `https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/generate-persona`;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session not found.");
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          job: formData.job,
+          goal: formData.goal,
+          audience: formData.audience,
+          tone: formData.tone,
+          themes: generatedThemes,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Persona generation failed.");
+      }
+      const personaData = await response.json();
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          job: formData.job,
+          goal: formData.goal,
+          audience: formData.audience,
+          tone: formData.tone,
+          onboarding_completed: true,
+          themes: generatedThemes,
+          persona_data: personaData,
+        })
+        .eq("id", user.id);
+      if (profileError) throw profileError;
+      alert("Profile completed and persona generated!");
+      onClose();
+    } catch (error: any) {
+      alert(`An error occurred: ${error.message}`);
       console.error(error);
-    } else {
-      alert("Profil complété !");
-      onClose(); // Ferme la modale avec succès
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteTheme = (themeToDelete: string) => {
+    setGeneratedThemes((prevThemes) =>
+      prevThemes.filter((theme) => theme !== themeToDelete)
+    );
+  };
+
+  const handleGenerateThemes = async () => {
+    if (!user) return;
+    setIsGenerating(true);
+    setGenerationError(null);
+    try {
+      const functionUrl = `https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/rapid-handler`;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Could not get session.");
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          job: formData.job,
+          goal: formData.goal,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Theme generation failed.");
+      }
+      const data = await response.json();
+      if (data.themes && Array.isArray(data.themes)) {
+        setGeneratedThemes(data.themes);
+      } else {
+        throw new Error("Invalid theme format received.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setGenerationError("Could not generate themes at this time.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleNext = () => {
+    if (step === 1) {
+      handleGenerateThemes();
+    }
+    setStep((prev) => prev + 1);
+  };
+
+  const handleBack = () => setStep((prev) => prev - 1);
+
+  const handleAddTheme = () => {
+    const themeToAdd = newTheme.trim();
+    if (themeToAdd && !generatedThemes.includes(themeToAdd)) {
+      setGeneratedThemes((prevThemes) => [...prevThemes, themeToAdd]);
+      setNewTheme("");
+    }
+  };
+
+  const handleKeyDownAddTheme = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddTheme();
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 backdrop-blur-xs flex items-center justify-center overflow-y-auto px-4">
+    <div className="fixed inset-0 backdrop-blur-xs flex items-center justify-center z-50 p-4">
       <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md"
+        onSubmit={handleFinalSubmit}
+        className="bg-white p-10 rounded-xl shadow-2xl w-full max-w-2xl"
       >
-        {/* Étape 1 : Métier et Objectif */}
+        <Stepper currentStep={step} />
         {step === 1 && (
-          <>
-            <h2 className="text-2xl font-bold mb-4">Commençons par vous</h2>
-            <div className="space-y-4 mb-6">
+          <div>
+            <h2 className="text-3xl font-bold mb-4">Commençons par vous</h2>
+            <div className="space-y-6 mb-8">
               <div>
                 <label
-                  htmlFor="job_title"
-                  className="block text-sm font-medium text-gray-700"
+                  htmlFor="job"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Quel est votre métier ?
                 </label>
                 <input
                   type="text"
-                  name="job_title"
-                  value={formData.job_title}
+                  name="job"
+                  value={formData.job}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  placeholder="Ex: Développeur Web, Coach Agile, Consultant SEO..."
                   required
                 />
               </div>
               <div>
                 <label
                   htmlFor="goal"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Quel est votre objectif principal sur LinkedIn ?
                 </label>
-                <input
-                  type="text"
+                <textarea
                   name="goal"
                   value={formData.goal}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 min-h-[100px]"
+                  placeholder="Ex: Trouver de nouveaux clients, partager mon expertise pour construire ma marque personnelle, recruter des talents..."
                   required
                 />
               </div>
@@ -102,39 +225,38 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
               <button
                 type="button"
                 onClick={handleNext}
-                className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+                className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 text-base"
               >
                 Suivant
               </button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* Étape 2 : Audience et Ton */}
         {step === 2 && (
-          <>
-            <h2 className="text-2xl font-bold mb-4">Votre communication</h2>
-            <div className="space-y-4 mb-6">
+          <div>
+            <h2 className="text-3xl font-bold mb-4">Votre communication</h2>
+            <div className="space-y-6 mb-8">
               <div>
                 <label
                   htmlFor="audience"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Qui est votre audience cible ?
                 </label>
-                <input
-                  type="text"
+                <textarea
                   name="audience"
                   value={formData.audience}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 min-h-[100px]"
+                  placeholder="Ex: Des directeurs marketing dans des PME, des développeurs juniors, des responsables RH dans la tech..."
                   required
                 />
               </div>
               <div>
                 <label
                   htmlFor="tone"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Quel ton souhaitez-vous employer ?
                 </label>
@@ -142,10 +264,14 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
                   name="tone"
                   value={formData.tone}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
-                  <option value="tutoiement">Tutoiement</option>
-                  <option value="vouvoiement">Vouvoiement</option>
+                  <option value="tutoiement">
+                    Tutoiement (plus direct et personnel)
+                  </option>
+                  <option value="vouvoiement">
+                    Vouvoiement (plus formel et professionnel)
+                  </option>
                 </select>
               </div>
             </div>
@@ -153,51 +279,103 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
               <button
                 type="button"
                 onClick={handleBack}
-                className="text-gray-600 py-2 px-4 rounded-md hover:bg-gray-100"
+                className="text-gray-600 py-2 px-6 rounded-md hover:bg-gray-100 text-base"
               >
                 Précédent
               </button>
               <button
                 type="button"
                 onClick={handleNext}
-                className="bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+                className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 text-base"
               >
                 Suivant
               </button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* Étape 3 : Proposition de thèmes */}
         {step === 3 && (
-          <>
-            <h2 className="text-2xl font-bold mb-4">Vos thèmes de contenu</h2>
-            <p className="text-gray-600 mb-4">
-              Voici quelques thèmes que nous vous suggérons. Vous pourrez les
-              modifier plus tard.
+          <div>
+            <h2 className="text-3xl font-bold mb-4">Vos thèmes de contenu</h2>
+            <p className="text-gray-600 mb-6">
+              Affinez la liste en supprimant des thèmes ou en ajoutant les
+              vôtres.
             </p>
-            <div className="space-y-2 bg-gray-50 p-4 rounded-md mb-6">
-              {/* Contenu statique en attendant l'IA */}
-              <p>Thème 1 : Les défis de [votre métier]</p>
-              <p>Thème 2 : Comment atteindre [votre objectif]</p>
-              <p>Thème 3 : Conseils pour [votre audience]</p>
+            <div className="min-h-[120px] bg-slate-50 p-4 rounded-lg mb-4 border border-slate-200">
+              {isGenerating ? (
+                <p className="text-gray-500 animate-pulse">
+                  Génération des thèmes...
+                </p>
+              ) : generationError ? (
+                <p className="text-red-500">{generationError}</p>
+              ) : (
+                <div className="flex flex-wrap gap-3">
+                  {generatedThemes.map((theme, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 bg-blue-100 text-blue-800 text-sm font-medium pl-4 pr-2 py-2 rounded-full"
+                    >
+                      <span>{theme}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTheme(theme)}
+                        className="text-blue-600 hover:bg-blue-300/50 rounded-full p-0.5 transition-colors"
+                        aria-label={`Supprimer le thème ${theme}`}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3 mb-8">
+              <input
+                type="text"
+                value={newTheme}
+                onChange={(e) => setNewTheme(e.target.value)}
+                onKeyDown={handleKeyDownAddTheme}
+                className="flex-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                placeholder="Ajouter un nouveau thème..."
+              />
+              <button
+                type="button"
+                onClick={handleAddTheme}
+                className="bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300"
+              >
+                Ajouter
+              </button>
             </div>
             <div className="flex justify-between">
               <button
                 type="button"
                 onClick={handleBack}
-                className="text-gray-600 py-2 px-4 rounded-md hover:bg-gray-100"
+                className="text-gray-600 py-2 px-6 rounded-md hover:bg-gray-100 text-base"
               >
                 Précédent
               </button>
               <button
                 type="submit"
-                className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700"
+                className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 text-base disabled:bg-green-300"
+                disabled={isSaving}
               >
-                Terminer et commencer
+                {isSaving ? "Finalisation..." : "Terminer et commencer"}
               </button>
             </div>
-          </>
+          </div>
         )}
       </form>
     </div>
