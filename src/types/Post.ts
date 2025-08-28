@@ -4,4 +4,6 @@ export type Post = {
   last_status_date: string;
   status: string;
   scheduled_at: string | null;
+  main_theme: string | null;
+  sub_theme: string | null;
 };

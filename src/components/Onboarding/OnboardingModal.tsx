@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
+import type { Session } from "@supabase/supabase-js";
 
 // Interface for component props
 interface OnboardingModalProps {
@@ -39,7 +40,9 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
     audience: "",
     tone: "tutoiement",
   });
-
+  const [savingMessage, setSavingMessage] = useState(
+    "Finalisation en cours..."
+  );
   const [newTheme, setNewTheme] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -59,52 +62,107 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
     e.preventDefault();
     if (!user) return;
     setIsSaving(true);
+
     try {
-      const functionUrl = `https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/generate-persona`;
+      setSavingMessage("Mise à jour de votre profil...");
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) throw new Error("Session not found.");
-      const response = await fetch(functionUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          job: formData.job,
-          goal: formData.goal,
-          audience: formData.audience,
-          tone: formData.tone,
-          themes: generatedThemes,
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Persona generation failed.");
-      }
-      const personaData = await response.json();
-      const { error: profileError } = await supabase
+      if (!session) throw new Error("Session non trouvée.");
+
+      // On lance les deux générations en parallèle
+      const personaPromise = generatePersona(session);
+      const postsPromise = generateFourPosts(session); // N'a plus besoin de personaData
+
+      const [personaData, generatedPosts] = await Promise.all([
+        personaPromise,
+        postsPromise,
+      ]);
+
+      // Étape 3 : Sauvegarder les résultats des générations
+      setSavingMessage("Sauvegarde des données finales...");
+
+      // Sauvegarder le persona dans le profil
+      await supabase
         .from("profiles")
-        .update({
-          job: formData.job,
-          goal: formData.goal,
-          audience: formData.audience,
-          tone: formData.tone,
-          onboarding_completed: true,
-          themes: generatedThemes,
-          persona_data: personaData,
-        })
+        .update({ persona_data: personaData })
         .eq("id", user.id);
-      if (profileError) throw profileError;
-      alert("Profile completed and persona generated!");
+
+      // Insérer les nouveaux posts
+      const postsToInsert = generatedPosts.map(
+        (postObject: {
+          content: string;
+          main_theme: string;
+          sub_theme: string;
+        }) => ({
+          content: postObject.content,
+          main_theme: postObject.main_theme,
+          sub_theme: postObject.sub_theme,
+          user_id: user.id,
+          status: "Idée",
+        })
+      );
+
+      const { error: insertError } = await supabase
+        .from("posts")
+        .insert(postsToInsert);
+      if (insertError) throw insertError;
+
+      alert("Tout est prêt ! Bienvenue !");
       onClose();
     } catch (error: any) {
-      alert(`An error occurred: ${error.message}`);
+      alert(`Une erreur est survenue : ${error.message}`);
       console.error(error);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Fonction dédiée à la génération du persona
+  const generatePersona = async (session: Session) => {
+    const functionUrl = `https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/generate-persona`;
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ ...formData, themes: generatedThemes }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        `Erreur Persona: ${errorData.error || "Génération échouée"}`
+      );
+    }
+    return response.json();
+  };
+
+  // Fonction dédiée à la génération des 4 posts
+  const generateFourPosts = async (session: Session) => {
+    const functionUrl = `https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/generate-four-posts`;
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      // On envoie les thèmes et les données de base du formulaire
+      body: JSON.stringify({
+        themes: generatedThemes,
+        formData: formData,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        `Erreur Posts: ${errorData.error || "Génération échouée"}`
+      );
+    }
+    const data = await response.json();
+    console.log(data);
+    return data.posts;
   };
 
   const handleDeleteTheme = (themeToDelete: string) => {
@@ -178,6 +236,12 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
 
   return (
     <div className="fixed inset-0 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+      {isSaving && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center space-y-4">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          <p className="text-lg font-medium text-gray-700">{savingMessage}</p>
+        </div>
+      )}
       <form
         onSubmit={handleFinalSubmit}
         className="bg-white p-10 rounded-xl shadow-2xl w-full max-w-2xl"

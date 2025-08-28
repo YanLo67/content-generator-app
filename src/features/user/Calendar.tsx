@@ -35,7 +35,9 @@ export default function Calendrier() {
 
     const { data, error } = await supabase
       .from("posts")
-      .select("id, content, status, last_status_date, scheduled_at")
+      .select(
+        "id, content, status, last_status_date, scheduled_at, main_theme, sub_theme"
+      )
       .eq("user_id", user.id);
 
     if (error) console.error("Erreur :", error);
