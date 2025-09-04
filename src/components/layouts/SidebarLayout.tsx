@@ -58,7 +58,7 @@ export default function SidebarLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 p-10 bg-gray-100 overflow-auto">
+      <main className="flex-1 flex flex-col overflow-hidden">
         <Outlet />
       </main>
     </div>

@@ -1,5 +1,6 @@
 import React from "react";
 import type { Post } from "../../types/Post";
+import { differenceInDays, parseISO } from "date-fns";
 
 // Fonction pour associer une couleur à chaque grand thème
 const getThemeColor = (mainTheme: string) => {
@@ -14,18 +15,49 @@ const getThemeColor = (mainTheme: string) => {
   );
 };
 
+const getLifecycleVignette = (post: Post) => {
+  // On calcule l'âge de l'idée depuis sa dernière modification
+  const postAgeInDays = differenceInDays(
+    new Date(),
+    new Date(post.last_status_date)
+  );
+
+  if (postAgeInDays <= 14) {
+    return "bg-green-500"; // 🟢 Vert (Actif)
+  }
+  if (postAgeInDays <= 29) {
+    return "bg-orange-500"; // 🟠 Orange (À risque)
+  }
+  return "bg-red-500"; // 🔴 Rouge (Inactif / À supprimer)
+};
+
 interface IdeaPostCardProps {
   post: Post;
   onClick: (post: Post) => void;
+  isNew?: boolean;
 }
 
-export default function IdeaPostCard({ post, onClick }: IdeaPostCardProps) {
+export default function IdeaPostCard({
+  post,
+  onClick,
+  isNew = false,
+}: IdeaPostCardProps) {
   return (
     <div
       onClick={() => onClick(post)}
-      className="p-4 bg-white rounded-lg border border-gray-200 cursor-pointer hover:shadow-md hover:border-blue-500 transition-all"
+      // ▼▼▼ 2. UTILISER LA PROP 'isNew' POUR CHANGER LE STYLE ▼▼▼
+      className={`p-4 rounded-lg border cursor-pointer hover:shadow-md transition-all duration-300 relative ${
+        isNew
+          ? "bg-slate-100 border-blue-500 shadow-md"
+          : "bg-white border-gray-200 hover:border-blue-500"
+      }`}
     >
-      {/* Affichage des thèmes */}
+      <div
+        className={`absolute top-2 right-2 w-3 h-3 rounded-full ${getLifecycleVignette(
+          post
+        )}`}
+      ></div>
+
       <div className="flex items-center gap-2 mb-2">
         {post.main_theme && (
           <span
@@ -42,8 +74,6 @@ export default function IdeaPostCard({ post, onClick }: IdeaPostCardProps) {
           </span>
         )}
       </div>
-
-      {/* Aperçu du contenu du post */}
       <p className="text-gray-700 text-sm line-clamp-3">{post.content}</p>
     </div>
   );

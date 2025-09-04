@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  format,
   startOfMonth,
   endOfMonth,
   startOfWeek,
@@ -8,11 +9,14 @@ import {
   isSameDay,
   addMonths,
   subMonths,
+  addWeeks,
+  subWeeks,
 } from "date-fns";
+import { fr } from "date-fns/locale";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import { type DropResult } from "@hello-pangea/dnd";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { DragDropContext } from "@hello-pangea/dnd";
 import type { Post } from "../../types/Post";
 import { PostStatus } from "../../constants/postStatus";
 import Modal from "../../components/Modal";
@@ -23,7 +27,8 @@ import CalendarView from "../../components/calendar/CalendarView";
 export default function Calendrier() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
@@ -32,7 +37,6 @@ export default function Calendrier() {
 
   const fetchPosts = async () => {
     if (!user) return;
-
     const { data, error } = await supabase
       .from("posts")
       .select(
@@ -44,119 +48,117 @@ export default function Calendrier() {
     else setPosts(data || []);
   };
 
-  const handlePostClick = (post: Post) => {
-    setSelectedPost(post);
-  };
-
   const onDragEnd = async (result: DropResult) => {
-    const { source, destination, draggableId } = result;
-
+    const { destination, draggableId } = result;
     if (!destination) return;
 
     const postId = parseInt(draggableId);
-    const previousPosts = posts;
+    const newDate =
+      destination.droppableId === "unscheduled"
+        ? null
+        : destination.droppableId;
 
-    // Si on remet dans "À planifier"
-    if (destination.droppableId === "unscheduled") {
-      setPosts((prevPosts) =>
-        prevPosts.map((post) =>
-          post.id === postId ? { ...post, scheduled_at: null } : post
-        )
-      );
+    setPosts((prevPosts) =>
+      prevPosts.map((post) =>
+        post.id === postId ? { ...post, scheduled_at: newDate } : post
+      )
+    );
 
-      const { error } = await supabase
-        .from("posts")
-        .update({ scheduled_at: null })
-        .eq("id", postId)
-        .eq("user_id", user?.id);
+    const { error } = await supabase
+      .from("posts")
+      .update({ scheduled_at: newDate })
+      .eq("id", postId);
 
-      if (error) {
-        console.error("Erreur :", error.message);
-        setPosts(previousPosts);
-      }
-    } else {
-      // Si on programme sur une date
-      const dropDate = destination.droppableId;
-
-      setPosts((prevPosts) =>
-        prevPosts.map((post) =>
-          post.id === postId ? { ...post, scheduled_at: dropDate } : post
-        )
-      );
-
-      const { error } = await supabase
-        .from("posts")
-        .update({ scheduled_at: dropDate })
-        .eq("id", postId)
-        .eq("user_id", user?.id);
-
-      if (error) {
-        console.error("Erreur :", error.message);
-        setPosts(previousPosts);
-      }
+    if (error) {
+      console.error("Erreur :", error.message);
+      // Optionnel : restaurer l'état précédent en cas d'erreur
+      fetchPosts();
     }
   };
 
-  const generateCalendar = () => {
-    const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 });
-    const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 1 });
-    const days = [];
+  // --- Logique de génération et navigation ---
 
+  const generateMonthDays = (date: Date) => {
+    const start = startOfWeek(startOfMonth(date), { weekStartsOn: 1 });
+    const end = endOfWeek(endOfMonth(date), { weekStartsOn: 1 });
+    const days = [];
     let day = start;
     while (day <= end) {
       days.push(day);
       day = addDays(day, 1);
     }
-
     return days;
   };
 
-  const getPostsForDay = (date: Date) =>
-    posts.filter(
-      (p) => p.scheduled_at && isSameDay(new Date(p.scheduled_at), date)
-    );
+  const generateWeekDays = (date: Date) => {
+    const start = startOfWeek(date, { weekStartsOn: 1 });
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      days.push(addDays(start, i));
+    }
+    return days;
+  };
 
+  const navigate = (direction: "prev" | "next") => {
+    const handler = direction === "next" ? 1 : -1;
+    if (viewMode === "month") {
+      setCurrentDate((prev) => addMonths(prev, handler));
+    } else {
+      setCurrentDate((prev) => addWeeks(prev, handler));
+    }
+  };
+
+  const goToToday = () => setCurrentDate(new Date());
+
+  const getHeaderText = () => {
+    if (viewMode === "month") {
+      return format(currentDate, "MMMM yyyy", { locale: fr });
+    } else {
+      const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+      if (start.getMonth() === end.getMonth()) {
+        return `Semaine du ${format(start, "d")} au ${format(
+          end,
+          "d MMMM yyyy",
+          { locale: fr }
+        )}`;
+      }
+      return `Semaine du ${format(start, "d MMM")} au ${format(
+        end,
+        "d MMM yyyy",
+        { locale: fr }
+      )}`;
+    }
+  };
+
+  const daysToDisplay =
+    viewMode === "month"
+      ? generateMonthDays(currentDate)
+      : generateWeekDays(currentDate);
   const unscheduled = posts.filter(
     (p) => p.status === PostStatus.EnCours && !p.scheduled_at
   );
-
-  const navigateMonth = (direction: "prev" | "next") => {
-    setCurrentMonth((prev) =>
-      direction === "next" ? addMonths(prev, 1) : subMonths(prev, 1)
-    );
-  };
-
-  const goToToday = () => {
-    setCurrentMonth(new Date());
-  };
-
-  const test = () => {
-    console.log("a");
-  };
-
-  const weekDays = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 
   return (
     <>
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex h-screen bg-gray-50">
-          <CalendarSideBar
-            posts={unscheduled}
-            onPostClick={setSelectedPost}
-          ></CalendarSideBar>
+          <CalendarSideBar posts={unscheduled} onPostClick={setSelectedPost} />
 
-          {/* Calendar */}
           <CalendarView
-            currentMonth={currentMonth}
+            viewMode={viewMode}
+            onViewChange={setViewMode}
+            currentDate={currentDate}
+            days={daysToDisplay}
             posts={posts}
-            onNavigateMonth={navigateMonth}
+            onNavigate={navigate}
             onGoToToday={goToToday}
-            onPostClick={handlePostClick}
+            onPostClick={setSelectedPost}
+            headerText={getHeaderText()}
           />
         </div>
       </DragDropContext>
 
-      {/* Modal pour afficher les détails du post */}
       <Modal isOpen={!!selectedPost} onClose={() => setSelectedPost(null)}>
         {selectedPost && (
           <PostPopup

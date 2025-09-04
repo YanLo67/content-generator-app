@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import PostUp from "../../components/post/PostPopup";
 import Modal from "../../components/Modal";
 import { useAuth } from "../../hooks/useAuth";
@@ -7,6 +7,8 @@ import type { Post } from "../../types/Post";
 import FileTextExtractor from "../../components/FileTextExtractor"; // Pour l'upload de fichier
 import IdeaPostCard from "../../components/post/IdeaPostCard";
 import { Textarea } from "../../components/ui/textarea";
+import { differenceInDays } from "date-fns";
+import AlertPopup from "../../components/AlertPopup";
 
 const SparklesIcon = () => (
   <svg
@@ -23,12 +25,25 @@ const SparklesIcon = () => (
   </svg>
 );
 
+const getLifecycleStatus = (post: Post): "Vert" | "Orange" | "Rouge" => {
+  const postAgeInDays = differenceInDays(
+    new Date(),
+    new Date(post.last_status_date)
+  );
+  if (postAgeInDays <= 14) return "Vert";
+  if (postAgeInDays <= 29) return "Orange";
+  return "Rouge";
+};
+
 export default function Creation() {
   const { user } = useAuth();
   // 'posts' contient maintenant la liste des idées pour la sidebar
   const [posts, setPosts] = useState<Post[]>([]);
+  const [profile, setProfile] = useState(null);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
+
+  const [showRedAlert, setShowRedAlert] = useState(false);
 
   // États pour la zone de génération
   const [textAreaContent, setTextAreaContent] = useState("");
@@ -37,22 +52,90 @@ export default function Creation() {
   const [error, setError] = useState<string | null>(null);
   const [fileText, setFileText] = useState("");
 
+  // Nouveaux états pour les filtres et le tri
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"last_status_date">("last_status_date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
+
+  const [redPostsToDelete, setRedPostsToDelete] = useState<Post[]>([]);
+
   // Charge les posts existants (peut être filtré par "Idée" ou non, selon votre préférence)
   const fetchPosts = async () => {
     if (!user) return;
-    const { data, error } = await supabase
+
+    try {
+      // On prépare les deux requêtes sans les lancer
+      const postsPromise = supabase
+        .from("posts")
+        .select(
+          "id, content, status, main_theme, sub_theme, last_status_date, scheduled_at, status"
+        )
+        .eq("user_id", user.id)
+        .eq("status", "Idée");
+
+      const profilePromise = supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      // On lance les deux requêtes en parallèle et on attend les résultats
+      const [postsResult, profileResult] = await Promise.all([
+        postsPromise,
+        profilePromise,
+      ]);
+
+      // On vérifie les erreurs
+      if (postsResult.error) throw postsResult.error;
+      if (profileResult.error) throw profileResult.error;
+
+      const fetchedPosts = postsResult.data || [];
+      const fetchedProfile = profileResult.data;
+
+      // On met à jour les états
+      setPosts(fetchedPosts);
+      setProfile(fetchedProfile); // Assurez-vous d'avoir un état [profile, setProfile]
+
+      // On vérifie si on doit afficher l'alerte
+      const isMonday = new Date().getDay() === 4;
+      const redPosts = fetchedPosts.filter(
+        (post) => getLifecycleStatus(post) === "Rouge"
+      );
+
+      const alertShownThisSession = sessionStorage.getItem("redPostAlertShown");
+
+      if (isMonday && redPosts.length > 0 && !alertShownThisSession) {
+        setRedPostsToDelete(redPosts);
+        setShowRedAlert(true);
+        setStatusFilter("Rouge");
+
+        sessionStorage.setItem("redPostAlertShown", "true");
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des données initiales:", error);
+    }
+  };
+
+  const handleDeleteRedPosts = async () => {
+    if (redPostsToDelete.length === 0) return;
+
+    const idsToDelete = redPostsToDelete.map((post) => post.id);
+
+    const { error } = await supabase
       .from("posts")
-      .select(
-        "id, content, status, main_theme, sub_theme, last_status_date, scheduled_at"
-      )
-      .eq("user_id", user.id)
-      .eq("status", "Idée")
-      .order("scheduled_at", { ascending: false });
+      .delete()
+      .in("id", idsToDelete);
 
     if (error) {
-      console.error("Erreur chargement posts:", error.message);
+      alert("Erreur lors de la suppression des posts.");
+      console.error(error);
     } else {
-      setPosts(data || []);
+      alert(`${idsToDelete.length} post(s) supprimé(s).`);
+      setShowRedAlert(false);
+      fetchPosts(); // On rafraîchit la liste
     }
   };
 
@@ -104,13 +187,30 @@ export default function Creation() {
         status: "Idée",
       }));
 
-      const { error: insertError } = await supabase
+      const { data: newPostsData, error: insertError } = await supabase
         .from("posts")
-        .insert(postsToInsert);
+        .insert(postsToInsert)
+        .select("id");
       if (insertError) throw insertError;
+
+      if (insertError) throw insertError;
+
+      // On ajoute tous les nouveaux IDs au Set
+      const newIds = newPostsData.map((p) => p.id);
+      const updatedIds = new Set([...newPostIds, ...newIds]);
+      setNewPostIds(updatedIds);
 
       // 4. Rafraîchir la liste
       fetchPosts();
+
+      // Après 3 secondes, on retire les IDs
+      setTimeout(() => {
+        setNewPostIds((prevIds) => {
+          const newIdsSet = new Set(prevIds);
+          newIds.forEach((id) => newIdsSet.delete(id));
+          return newIdsSet;
+        });
+      }, 10000);
     } catch (error: any) {
       alert(`Une erreur est survenue : ${error.message}`);
       console.error(error);
@@ -170,6 +270,23 @@ export default function Creation() {
     }
   };
 
+  const filteredAndSortedPosts = useMemo(() => {
+    return posts
+      .filter((post: Post) => {
+        const searchMatch = post.content
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+        const statusMatch =
+          !statusFilter || getLifecycleStatus(post) === statusFilter;
+        return searchMatch && statusMatch;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a[sortBy]).getTime();
+        const dateB = new Date(b[sortBy]).getTime();
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+      });
+  }, [posts, searchTerm, statusFilter, sortBy, sortOrder]);
+
   // Sauvegarde le post généré comme une nouvelle "Idée"
   const handleSavePost = async () => {
     const contentToSave = generatedPost.trim();
@@ -179,22 +296,36 @@ export default function Creation() {
     }
 
     try {
-      const { error } = await supabase
+      const { data: newPost, error } = await supabase
         .from("posts")
         .insert({
           content: contentToSave,
           user_id: user.id,
           status: "Idée",
         })
+        .select("id")
         .single();
 
       if (error) throw error;
+
+      // On ajoute l'ID du nouveau post à notre Set
+      const updatedIds = new Set(newPostIds).add(newPost.id);
+      setNewPostIds(updatedIds);
 
       alert("Idée sauvegardée avec succès !");
       setGeneratedPost("");
       setTextAreaContent("");
       setFileText("");
       fetchPosts(); // Rafraîchit la liste dans la sidebar
+
+      // Après 3 secondes, on retire l'ID pour que le style redevienne normal
+      setTimeout(() => {
+        setNewPostIds((prevIds) => {
+          const newIds = new Set(prevIds);
+          newIds.delete(newPost.id);
+          return newIds;
+        });
+      }, 10000);
     } catch (err: any) {
       console.error("Erreur lors de la sauvegarde du post:", err.message);
       alert("Une erreur est survenue lors de la sauvegarde.");
@@ -202,64 +333,103 @@ export default function Creation() {
   };
 
   return (
-    <div className="flex h-full bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Barre latérale (gauche) prend 2/3 de la largeur */}
-      <aside className="w-2/3 border-r border-gray-200 p-4 overflow-y-auto bg-white">
-        <div className="flex justify-between items-center mb-4 sticky top-0 bg-white/80 backdrop-blur-sm pb-2 z-10">
-          <h3 className="text-lg font-semibold text-gray-800">
-            Mes Idées & Posts
-          </h3>
-          <button
-            onClick={handleBulkGenerate}
-            disabled={isBulkGenerating}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 text-sm font-semibold rounded-md hover:bg-blue-200 transition-colors disabled:opacity-50"
-          >
-            <SparklesIcon />
-            {isBulkGenerating ? "Génération..." : "Générer 4 idées"}
-          </button>
+      <aside className="w-2/3 border-r border-gray-200 p-4 flex flex-col bg-white">
+        <div className="flex-shrink-0 mb-4 sticky top-0 bg-white/80 backdrop-blur-sm py-2 z-10">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Mes Idées</h3>
+            <button
+              onClick={handleBulkGenerate}
+              disabled={isBulkGenerating}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-100 text-blue-700 text-sm font-semibold rounded-md hover:bg-blue-200 transition-colors disabled:opacity-50"
+            >
+              <SparklesIcon />
+              {isBulkGenerating ? "Génération..." : "Générer 4 idées"}
+            </button>
+          </div>
+
+          {/* Barre de filtres et de tri */}
+          <input
+            type="text"
+            placeholder="Rechercher une idée..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md mb-3"
+          />
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm font-medium text-gray-600">Statut :</span>
+            <button
+              onClick={() => setStatusFilter(null)}
+              className={`px-3 py-1 text-xs rounded-full ${
+                !statusFilter
+                  ? "bg-black text-white"
+                  : "bg-gray-200 text-gray-700"
+              }`}
+            >
+              Tous
+            </button>
+            <button
+              onClick={() => setStatusFilter("Vert")}
+              className={`px-3 py-1 text-xs rounded-full ${
+                statusFilter === "Vert"
+                  ? "bg-green-500 text-white"
+                  : "bg-gray-200 text-gray-700"
+              }`}
+            >
+              Vert
+            </button>
+            <button
+              onClick={() => setStatusFilter("Orange")}
+              className={`px-3 py-1 text-xs rounded-full ${
+                statusFilter === "Orange"
+                  ? "bg-orange-500 text-white"
+                  : "bg-gray-200 text-gray-700"
+              }`}
+            >
+              Orange
+            </button>
+            <button
+              onClick={() => setStatusFilter("Rouge")}
+              className={`px-3 py-1 text-xs rounded-full ${
+                statusFilter === "Rouge"
+                  ? "bg-red-500 text-white"
+                  : "bg-gray-200 text-gray-700"
+              }`}
+            >
+              Rouge
+            </button>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <button
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              className="p-2 border border-gray-300 rounded-md bg-white"
+            >
+              Trier {sortOrder === "desc" ? "🔽" : "🔼"}
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {posts.map((post) => (
-            // Utilisez ici le composant de carte que vous préférez, IdeaPostCard ou PostCardSimple
-            <IdeaPostCard
-              key={post.id}
-              post={post}
-              onClick={() => setSelectedPost(post)}
-            />
-          ))}
+
+        <div className="flex-grow overflow-y-auto min-h-0 pr-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredAndSortedPosts.map((post) => (
+              <IdeaPostCard
+                key={post.id}
+                post={post}
+                onClick={() => setSelectedPost(post)}
+                isNew={newPostIds.has(post.id)}
+              />
+            ))}
+          </div>
         </div>
       </aside>
 
       {/* Zone principale (droite) prend 1/3 de la largeur */}
-      <main className="w-1/3 p-6 flex flex-col gap-6">
+      <main className="w-1/3 p-6 flex flex-col gap-6 min-h-0">
         <h2 className="text-xl font-bold text-gray-800 flex-shrink-0">
           Générateur d'Idées
         </h2>
-
-        {/* Zone de saisie (plus petite) */}
-        <div className="flex-shrink-0 bg-white p-4 rounded-lg border">
-          <textarea
-            className="w-full h-1 p-2 border border-gray-300 rounded-lg resize-none min-h-[100px] focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Écrivez une idée, collez un texte..."
-            value={textAreaContent}
-            onChange={(e) => setTextAreaContent(e.target.value)}
-          />
-          <div className="mt-2">
-            <FileTextExtractor onExtract={(text) => setTextAreaContent(text)} />
-          </div>
-          <button
-            className="mt-4 w-full px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
-            disabled={
-              isGenerating || (!textAreaContent.trim() && !fileText.trim())
-            }
-            onClick={handleGeneratePost}
-          >
-            {isGenerating ? "Génération..." : "Transformer avec l'IA"}
-          </button>
-        </div>
-
-        {/* Zone de résultat (plus grande) */}
-        <div className="flex-1 bg-white rounded-lg border p-4 flex flex-col min-h-0">
+        <div className="flex-1 bg-white rounded-lg border p-4 flex flex-col">
           <h4 className="font-semibold text-gray-700 mb-2 flex-shrink-0">
             Suggestion de l'IA :
           </h4>
@@ -289,6 +459,30 @@ export default function Creation() {
             </div>
           )}
         </div>
+
+        {/* Zone de saisie (plus petite) */}
+        <div className="flex-shrink-0 bg-white p-4 rounded-lg border">
+          <textarea
+            className="w-full h-1 p-2 border border-gray-300 rounded-lg resize-none min-h-[100px] focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Écrivez une idée, collez un texte..."
+            value={textAreaContent}
+            onChange={(e) => setTextAreaContent(e.target.value)}
+          />
+          <div className="mt-2">
+            <FileTextExtractor onExtract={(text) => setTextAreaContent(text)} />
+          </div>
+          <button
+            className="mt-4 w-full px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+            disabled={
+              isGenerating || (!textAreaContent.trim() && !fileText.trim())
+            }
+            onClick={handleGeneratePost}
+          >
+            {isGenerating ? "Génération..." : "Transformer avec l'IA"}
+          </button>
+        </div>
+
+        {/* Zone de résultat*/}
       </main>
 
       <Modal isOpen={!!selectedPost} onClose={() => setSelectedPost(null)}>
@@ -301,6 +495,15 @@ export default function Creation() {
           />
         )}
       </Modal>
+
+      {showRedAlert && (
+        <AlertPopup
+          postsToDelete={redPostsToDelete}
+          profile={profile}
+          onClose={() => setShowRedAlert(false)}
+          onDelete={handleDeleteRedPosts}
+        />
+      )}
     </div>
   );
 }
