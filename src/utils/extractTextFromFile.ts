@@ -17,7 +17,6 @@ export async function extractTextFromFile(file: File): Promise<string> {
   if (ext === "txt") {
     rawText = await file.text();
   } else if (ext === "pdf") {
-    // ... ton extraction PDF
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let text = "";
@@ -26,6 +25,9 @@ export async function extractTextFromFile(file: File): Promise<string> {
       const content = await page.getTextContent();
       text += content.items.map((item: any) => item.str).join(" ") + "\n";
     }
+    if (!text.trim()) {
+  throw new Error("Ce PDF ne contient pas de texte lisible. Il s'agit peut-être d'un document scanné.");
+}
     rawText = text;
   } else if (ext === "docx") {
     const arrayBuffer = await file.arrayBuffer();

@@ -30,7 +30,9 @@ export default function Postes() {
 
     const { data, error } = await supabase
       .from("posts")
-      .select("id, content, last_status_date, status, scheduled_at")
+      .select(
+        "id, content, last_status_date, status, scheduled_at,main_theme, sub_theme"
+      )
       .eq("user_id", user.id)
       .order("last_status_date", { ascending: false });
 
@@ -82,7 +84,9 @@ export default function Postes() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6 text-center">Mes posts générés</h1>
+      <h1 className="text-2xl font-bold mb-6 text-center" id="tour-step-5">
+        Mes posts générés
+      </h1>
 
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

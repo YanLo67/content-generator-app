@@ -1,6 +1,5 @@
-import React from "react";
 import type { Post } from "../../types/Post";
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInDays } from "date-fns";
 
 // Fonction pour associer une couleur à chaque grand thème
 const getThemeColor = (mainTheme: string) => {

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import type { Post } from "../../types/Post";
 import { PostStatus } from "../../constants/postStatus";
-import { differenceInDays, format } from "date-fns";
+import { differenceInDays } from "date-fns";
 
 type Props = {
   post: Post;
@@ -433,7 +433,7 @@ export default function PostModalContent({
                     disabled={isLoading}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   >
-                    Relancer
+                    Mettre en A faire
                   </button>
                 </div>
               </div>

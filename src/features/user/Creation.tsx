@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import PostUp from "../../components/post/PostPopup";
 import Modal from "../../components/Modal";
 import { useAuth } from "../../hooks/useAuth";
@@ -55,7 +55,7 @@ export default function Creation() {
   // Nouveaux états pour les filtres et le tri
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<"last_status_date">("last_status_date");
+  const [sortBy] = useState<"last_status_date">("last_status_date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
@@ -100,7 +100,7 @@ export default function Creation() {
       setProfile(fetchedProfile); // Assurez-vous d'avoir un état [profile, setProfile]
 
       // On vérifie si on doit afficher l'alerte
-      const isMonday = new Date().getDay() === 4;
+      const isMonday = new Date().getDay() === 5;
       const redPosts = fetchedPosts.filter(
         (post) => getLifecycleStatus(post) === "Rouge"
       );
@@ -335,10 +335,15 @@ export default function Creation() {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Barre latérale (gauche) prend 2/3 de la largeur */}
-      <aside className="w-2/3 border-r border-gray-200 p-4 flex flex-col bg-white">
+      <aside
+        className="w-2/3 border-r border-gray-200 p-4 flex flex-col bg-white"
+        id="tour-step-2"
+      >
         <div className="flex-shrink-0 mb-4 sticky top-0 bg-white/80 backdrop-blur-sm py-2 z-10">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Mes Idées</h3>
+            <h3 className="text-lg font-semibold text-gray-800">
+              Mes Idées de posts
+            </h3>
             <button
               onClick={handleBulkGenerate}
               disabled={isBulkGenerating}
@@ -425,9 +430,9 @@ export default function Creation() {
       </aside>
 
       {/* Zone principale (droite) prend 1/3 de la largeur */}
-      <main className="w-1/3 p-6 flex flex-col gap-6 min-h-0">
+      <main className="w-1/3 p-6 flex flex-col gap-6 min-h-0" id="tour-step-3">
         <h2 className="text-xl font-bold text-gray-800 flex-shrink-0">
-          Générateur d'Idées
+          Création de posts
         </h2>
         <div className="flex-1 bg-white rounded-lg border p-4 flex flex-col">
           <h4 className="font-semibold text-gray-700 mb-2 flex-shrink-0">

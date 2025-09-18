@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import type { Post } from "../types/Post";
 
@@ -77,7 +77,6 @@ export default function AlertPopup({
 
   return (
     <div className="fixed inset-0 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      {/* ▼▼▼ NOUVEAU DESIGN DE LA POPUP ▼▼▼ */}
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col gap-6">
         {/* En-tête */}
         <div className="text-center">

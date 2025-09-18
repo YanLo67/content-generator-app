@@ -40,9 +40,7 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
     audience: "",
     tone: "tutoiement",
   });
-  const [savingMessage, setSavingMessage] = useState(
-    "Finalisation en cours..."
-  );
+  const [savingMessage] = useState("Finalisation en cours...");
   const [newTheme, setNewTheme] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -63,31 +61,25 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
     if (!user) return;
     setIsSaving(true);
 
+    onClose();
+
     try {
-      setSavingMessage("Mise à jour de votre profil...");
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) throw new Error("Session non trouvée.");
-
       // On lance les deux générations en parallèle
       const personaPromise = generatePersona(session);
       const postsPromise = generateFourPosts(session); // N'a plus besoin de personaData
-
       const [personaData, generatedPosts] = await Promise.all([
         personaPromise,
         postsPromise,
       ]);
-
-      // Étape 3 : Sauvegarder les résultats des générations
-      setSavingMessage("Sauvegarde des données finales...");
-
       // Sauvegarder le persona dans le profil
       await supabase
         .from("profiles")
-        .update({ persona_data: personaData })
+        .update({ persona_data: personaData, onboarding_completed: true })
         .eq("id", user.id);
-
       // Insérer les nouveaux posts
       const postsToInsert = generatedPosts.map(
         (postObject: {
@@ -102,14 +94,10 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
           status: "Idée",
         })
       );
-
       const { error: insertError } = await supabase
         .from("posts")
         .insert(postsToInsert);
       if (insertError) throw insertError;
-
-      alert("Tout est prêt ! Bienvenue !");
-      onClose();
     } catch (error: any) {
       alert(`Une erreur est survenue : ${error.message}`);
       console.error(error);

@@ -1,5 +1,4 @@
 import { format, isSameDay, isSameMonth } from "date-fns";
-import { fr } from "date-fns/locale";
 import { Droppable } from "@hello-pangea/dnd";
 import type { Post } from "../../types/Post";
 import PostCardCalendar from "../post/PostCardCalendar"; // Assurez-vous que le chemin est correct

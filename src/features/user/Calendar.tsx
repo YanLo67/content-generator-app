@@ -6,11 +6,8 @@ import {
   startOfWeek,
   endOfWeek,
   addDays,
-  isSameDay,
   addMonths,
-  subMonths,
   addWeeks,
-  subWeeks,
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "../../lib/supabase";
@@ -143,19 +140,26 @@ export default function Calendrier() {
     <>
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex h-screen bg-gray-50">
-          <CalendarSideBar posts={unscheduled} onPostClick={setSelectedPost} />
+          <div id="tour-step-6" className="w-80 h-full">
+            <CalendarSideBar
+              posts={unscheduled}
+              onPostClick={setSelectedPost}
+            />
+          </div>
 
-          <CalendarView
-            viewMode={viewMode}
-            onViewChange={setViewMode}
-            currentDate={currentDate}
-            days={daysToDisplay}
-            posts={posts}
-            onNavigate={navigate}
-            onGoToToday={goToToday}
-            onPostClick={setSelectedPost}
-            headerText={getHeaderText()}
-          />
+          <div id="tour-step-7" className="flex-1 flex flex-col min-h-0">
+            <CalendarView
+              viewMode={viewMode}
+              onViewChange={setViewMode}
+              currentDate={currentDate}
+              days={daysToDisplay}
+              posts={posts}
+              onNavigate={navigate}
+              onGoToToday={goToToday}
+              onPostClick={setSelectedPost}
+              headerText={getHeaderText()}
+            />
+          </div>
         </div>
       </DragDropContext>
 

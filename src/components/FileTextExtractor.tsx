@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { extractTextFromFile } from "../utils/extractTextFromFile"; // Assurez-vous que ce chemin est correct
+import { extractTextFromFile } from "../utils/extractTextFromFile";
+import { supabase } from "../lib/supabase";
 
 type FileTextExtractorProps = {
   onExtract?: (text: string) => void;
@@ -64,6 +65,7 @@ export default function FileTextExtractor({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const handleFileSelect = async (file: File | null) => {
@@ -71,11 +73,44 @@ export default function FileTextExtractor({
 
     setError(null);
     setFileName(null);
+    setSuccessMessage(null);
     setLoading(true);
 
     try {
+      const sourceId = crypto.randomUUID();
+
       const text = await extractTextFromFile(file);
       setFileName(file.name);
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Vous devez être connecté.");
+
+      const response = await fetch(
+        "https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/embed-document",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            documentText: text,
+            sourceId: sourceId,
+            user_id: session.user.id,
+          }),
+        }
+      );
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.error || "L'embedding a échoué.");
+      }
+
+      setSuccessMessage(responseData.message || `${file.name} a été traité.`);
+
       if (onExtract) onExtract(text);
     } catch (err) {
       setError(
@@ -169,6 +204,21 @@ export default function FileTextExtractor({
                 className="mt-4 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Réessayer
+              </button>
+            </>
+          ) : successMessage ? (
+            <>
+              <SuccessIcon />
+              <p className="mt-4 text-lg font-semibold text-green-600">
+                Document traité !
+              </p>
+              <p className="text-sm text-gray-500">{successMessage}</p>
+              <button
+                onClick={reset}
+                type="button"
+                className="mt-4 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Uploader un autre fichier
               </button>
             </>
           ) : fileName ? (

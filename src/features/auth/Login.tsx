@@ -1,16 +1,15 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 
 export default function Login() {
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Vérifie si l'utilisateur est déjà connecté
+  // Redirige si l'utilisateur est déjà connecté
   useEffect(() => {
     const checkSession = async () => {
       const {
@@ -20,11 +19,11 @@ export default function Login() {
         navigate("/user/creation");
       }
     };
-
     checkSession();
   }, [navigate]);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setError(null);
 
@@ -34,7 +33,6 @@ export default function Login() {
     });
 
     setLoading(false);
-
     if (error) {
       setError(error.message);
     } else {
@@ -42,97 +40,44 @@ export default function Login() {
     }
   };
 
-  const handleSignup = async () => {
-    setLoading(true);
-    setError(null);
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
-    } else {
-      alert(
-        "Inscription réussie ! Un email de confirmation vous a été envoyé. Veuillez vérifier votre boîte mail."
-      );
-      setMode("login"); // bascule vers connexion après inscription
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-6 rounded shadow-md w-full max-w-sm">
-        <h1 className="text-xl font-bold mb-4">
-          {mode === "login" ? "Connexion" : "Créer un compte"}
-        </h1>
-
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full mb-2 p-2 border rounded"
-        />
-        <input
-          type="password"
-          placeholder="Mot de passe"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full mb-2 p-2 border rounded"
-        />
-
-        {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-
-        {mode === "login" ? (
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
+        <h1 className="text-2xl font-bold mb-6 text-center">Connexion</h1>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-3 border rounded-md"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Mot de passe"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 border rounded-md"
+            required
+          />
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           <button
-            onClick={handleLogin}
-            className="bg-blue-600 text-white w-full py-2 rounded disabled:opacity-50"
+            type="submit"
+            className="bg-blue-600 text-white w-full py-3 rounded-md disabled:opacity-50"
             disabled={loading}
           >
             {loading ? "Connexion..." : "Se connecter"}
           </button>
-        ) : (
-          <button
-            onClick={handleSignup}
-            className="bg-green-600 text-white w-full py-2 rounded disabled:opacity-50"
-            disabled={loading}
+        </form>
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Pas encore de compte ?{" "}
+          <Link
+            to="/signup"
+            className="text-blue-600 hover:underline font-medium"
           >
-            {loading ? "Inscription..." : "S'inscrire"}
-          </button>
-        )}
-
-        <p className="mt-4 text-center text-sm text-gray-600">
-          {mode === "login" ? (
-            <>
-              Pas encore de compte ?{" "}
-              <button
-                onClick={() => {
-                  setError(null);
-                  setMode("signup");
-                }}
-                className="text-blue-600 hover:underline"
-              >
-                Créer un compte
-              </button>
-            </>
-          ) : (
-            <>
-              Déjà un compte ?{" "}
-              <button
-                onClick={() => {
-                  setError(null);
-                  setMode("login");
-                }}
-                className="text-blue-600 hover:underline"
-              >
-                Se connecter
-              </button>
-            </>
-          )}
+            Créer un compte
+          </Link>
         </p>
       </div>
     </div>
