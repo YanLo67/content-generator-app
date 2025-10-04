@@ -4,11 +4,17 @@ import Modal from "../../components/Modal";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 import type { Post } from "../../types/Post";
-import FileTextExtractor from "../../components/FileTextExtractor"; // Pour l'upload de fichier
+import DocumentInput from "../../components/DocumentInput"; // Pour l'upload de fichier
 import IdeaPostCard from "../../components/post/IdeaPostCard";
 import { Textarea } from "../../components/ui/textarea";
 import { differenceInDays } from "date-fns";
 import AlertPopup from "../../components/AlertPopup";
+import { extractTextFromFile } from "../../utils/extractTextFromFile";
+import {
+  WRITING_STYLE_OPTIONS,
+  DEFAULT_WRITING_STYLE,
+  type WritingStyle,
+} from "../../configs/constants";
 
 const SparklesIcon = () => (
   <svg
@@ -43,6 +49,8 @@ export default function Creation() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
 
+  const [intention, setIntention] = useState<string>("Par défaut");
+
   const [showRedAlert, setShowRedAlert] = useState(false);
 
   // États pour la zone de génération
@@ -58,9 +66,27 @@ export default function Creation() {
   const [sortBy] = useState<"last_status_date">("last_status_date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [fileIsSaved, setFileIsSaved] = useState(false);
+  const [typedText, setTypedText] = useState("");
+
   const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
 
   const [redPostsToDelete, setRedPostsToDelete] = useState<Post[]>([]);
+
+  const [writingStyle, setWritingStyle] = useState<WritingStyle>(
+    DEFAULT_WRITING_STYLE
+  );
+
+  useEffect(() => {
+    if (uploadedFile) {
+      const processFile = async () => {
+        const text = await extractTextFromFile(uploadedFile);
+        setFileText((prevText) => `${prevText}\n\n${text}`.trim());
+      };
+      processFile();
+    }
+  }, [uploadedFile]);
 
   // Charge les posts existants (peut être filtré par "Idée" ou non, selon votre préférence)
   const fetchPosts = async () => {
@@ -97,10 +123,14 @@ export default function Creation() {
 
       // On met à jour les états
       setPosts(fetchedPosts);
-      setProfile(fetchedProfile); // Assurez-vous d'avoir un état [profile, setProfile]
+      setProfile(fetchedProfile);
+
+      if (fetchedProfile.default_writing_style) {
+        setWritingStyle(fetchedProfile.default_writing_style);
+      }
 
       // On vérifie si on doit afficher l'alerte
-      const isMonday = new Date().getDay() === 5;
+      const isMonday = new Date().getDay() === 1;
       const redPosts = fetchedPosts.filter(
         (post) => getLifecycleStatus(post) === "Rouge"
       );
@@ -116,6 +146,66 @@ export default function Creation() {
       }
     } catch (error) {
       console.error("Erreur lors du chargement des données initiales:", error);
+    }
+  };
+
+  const handleReset = () => {
+    setGeneratedPost("");
+    setError(null);
+    setTypedText("");
+    setUploadedFile(null);
+    setFileIsSaved(false);
+  };
+
+  const handleSaveFile = async (file: File): Promise<boolean> => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Vous devez être connecté.");
+
+      const { data: existingFile, error: checkError } = await supabase
+        .from("documents")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .eq("file_name", file.name)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingFile) {
+        console.log("Fichier déjà sauvegardé. Pas besoin de ré-uploader.");
+        return true;
+      }
+
+      const documentText = await extractTextFromFile(file);
+
+      const response = await fetch(
+        "https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/embed-document",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            documentText,
+            fileName: file.name,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "L'embedding a échoué.");
+      }
+
+      setFileIsSaved(true);
+      return true; // Success
+    } catch (err) {
+      setFileIsSaved(false);
+      console.error("Erreur dans handleSaveFile:", err);
+      return false; // Failure
     }
   };
 
@@ -191,7 +281,6 @@ export default function Creation() {
         .from("posts")
         .insert(postsToInsert)
         .select("id");
-      if (insertError) throw insertError;
 
       if (insertError) throw insertError;
 
@@ -228,10 +317,19 @@ export default function Creation() {
     setIsGenerating(true);
     setError(null);
     setGeneratedPost("");
-    const sourceText = textAreaContent.trim() || fileText.trim();
+
+    let sourceText = typedText.trim() + "\n" + fileText.trim();
+    let sourceFileName = null;
+
+    console.log(sourceText);
+
+    if (!sourceText && fileIsSaved && uploadedFile) {
+      sourceText = `Utiliser le contenu du document: ${uploadedFile.name}`;
+      sourceFileName = uploadedFile.name;
+    }
 
     if (!sourceText) {
-      setError("Veuillez entrer une idée ou uploader un fichier.");
+      setError("Veuillez entrer une idée ou sauvegarder un fichier.");
       setIsGenerating(false);
       return;
     }
@@ -244,13 +342,30 @@ export default function Creation() {
       } = await supabase.auth.getSession();
       if (!session) throw new Error("Vous devez être connecté.");
 
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("persona_data, tone, gender")
+        .eq("id", session.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        throw new Error("Impossible de récupérer le persona de l'utilisateur.");
+      }
+
       const response = await fetch(functionUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ sourceText }),
+        body: JSON.stringify({
+          sourceText: sourceText,
+          intention: intention,
+          persona_data: profile.persona_data,
+          tone: profile.tone,
+          writingStyle: writingStyle,
+          gender: profile.gender,
+        }),
       });
 
       if (!response.ok) {
@@ -262,6 +377,10 @@ export default function Creation() {
 
       const data = await response.json();
       setGeneratedPost(data.post);
+
+      setTypedText("");
+      setUploadedFile(null);
+      setFileIsSaved(false);
     } catch (err: any) {
       setError(err.message);
       console.error(err);
@@ -318,7 +437,6 @@ export default function Creation() {
       setFileText("");
       fetchPosts(); // Rafraîchit la liste dans la sidebar
 
-      // Après 3 secondes, on retire l'ID pour que le style redevienne normal
       setTimeout(() => {
         setNewPostIds((prevIds) => {
           const newIds = new Set(prevIds);
@@ -434,60 +552,109 @@ export default function Creation() {
         <h2 className="text-xl font-bold text-gray-800 flex-shrink-0">
           Création de posts
         </h2>
-        <div className="flex-1 bg-white rounded-lg border p-4 flex flex-col">
-          <h4 className="font-semibold text-gray-700 mb-2 flex-shrink-0">
-            Suggestion de l'IA :
-          </h4>
-          {isGenerating ? (
-            <p className="text-gray-500 animate-pulse">
-              Génération en cours...
-            </p>
-          ) : error ? (
-            <p className="text-red-500">{error}</p>
-          ) : generatedPost ? (
-            <Textarea
-              value={generatedPost}
-              onChange={(e) => setGeneratedPost(e.target.value)}
-              className="w-full h-full text-lg text-gray-800 bg-transparent resize-none border-none focus:ring-0 p-0"
-            />
+        <div className="flex-grow flex flex-col justify-center">
+          {isGenerating || generatedPost || error ? (
+            // --- BLOC 1 : AFFICHER LE RÉSULTAT ---
+            <div className="flex-1 bg-white rounded-lg border p-4 flex flex-col min-h-0">
+              <h4 className="font-semibold text-gray-700 mb-2 flex-shrink-0">
+                Suggestion de l'IA :
+              </h4>
+              <div className="flex-grow pr-2">
+                {isGenerating ? (
+                  <p className="text-gray-500 animate-pulse text-center mt-8">
+                    Génération en cours...
+                  </p>
+                ) : error ? (
+                  <p className="text-red-500 text-center mt-8">{error}</p>
+                ) : generatedPost ? (
+                  <Textarea
+                    value={generatedPost}
+                    onChange={(e) => setGeneratedPost(e.target.value)}
+                    className="w-full h-full text-lg text-gray-800 bg-transparent resize-none border-none focus:ring-0 p-0"
+                  />
+                ) : (
+                  <p className="text-gray-400 text-center mt-8">
+                    Le résultat apparaîtra ici.
+                  </p>
+                )}
+              </div>
+              {generatedPost && !isGenerating && (
+                <div className="flex justify-end mt-2 pt-2 border-t flex-shrink-0">
+                  <button
+                    onClick={handleSavePost}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+                  >
+                    Enregistrer l'idée
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
-            <p className="text-gray-400">Le résultat apparaîtra ici.</p>
-          )}
-          {generatedPost && !isGenerating && (
-            <div className="flex justify-end mt-2 pt-2 border-t flex-shrink-0">
+            // --- BLOC 2 : AFFICHER LA ZONE DE SAISIE ---
+            <div className="w-full flex-shrink-0 bg-white p-4 rounded-lg border">
+              <DocumentInput
+                onTextChange={setTypedText}
+                onFileChange={(file) => {
+                  setUploadedFile(file);
+                  setFileIsSaved(false);
+                }}
+                onFileSave={handleSaveFile}
+              />
+
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Choisir le style d'écriture :
+                </label>
+                <div className="flex gap-2">
+                  {WRITING_STYLE_OPTIONS.map((style) => (
+                    <button
+                      key={style}
+                      onClick={() => setWritingStyle(style)}
+                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                        writingStyle === style
+                          ? "bg-blue-600 text-white font-semibold"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      {style}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Choisissez une intention :
+                </label>
+                <div className="flex gap-2">
+                  {["Par défaut", "Éduquer", "Inspirer", "Promouvoir"].map(
+                    (int) => (
+                      <button
+                        key={int}
+                        onClick={() => setIntention(int)}
+                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                          intention === int
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 hover:bg-gray-300"
+                        }`}
+                      >
+                        {int}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+
               <button
-                onClick={handleSavePost}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+                className="mt-4 w-full px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+                disabled={isGenerating || (!typedText.trim() && !uploadedFile)}
+                onClick={handleGeneratePost}
               >
-                Enregistrer l'idée
+                {isGenerating ? "Génération..." : "Transformer avec l'IA"}
               </button>
             </div>
           )}
         </div>
-
-        {/* Zone de saisie (plus petite) */}
-        <div className="flex-shrink-0 bg-white p-4 rounded-lg border">
-          <textarea
-            className="w-full h-1 p-2 border border-gray-300 rounded-lg resize-none min-h-[100px] focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Écrivez une idée, collez un texte..."
-            value={textAreaContent}
-            onChange={(e) => setTextAreaContent(e.target.value)}
-          />
-          <div className="mt-2">
-            <FileTextExtractor onExtract={(text) => setTextAreaContent(text)} />
-          </div>
-          <button
-            className="mt-4 w-full px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
-            disabled={
-              isGenerating || (!textAreaContent.trim() && !fileText.trim())
-            }
-            onClick={handleGeneratePost}
-          >
-            {isGenerating ? "Génération..." : "Transformer avec l'IA"}
-          </button>
-        </div>
-
-        {/* Zone de résultat*/}
       </main>
 
       <Modal isOpen={!!selectedPost} onClose={() => setSelectedPost(null)}>

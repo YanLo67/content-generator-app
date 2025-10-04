@@ -3,9 +3,9 @@ import mammoth from "mammoth";
 
 function cleanExtractedText(text: string): string {
   return text
-    .replace(/\s+/g, " ")           // remplace espaces multiples par un espace
-    .replace(/[\x00-\x1F\x7F]/g, "") // supprime caractères de contrôle invisibles
-    .replace(/ ?\n ?/g, "\n")       // nettoie espaces autour des retours à la ligne
+    .replace(/\s+/g, " ")           
+    .replace(/[\x00-\x1F\x7F]/g, "")
+    .replace(/ ?\n ?/g, "\n")       
     .trim();
 }
 
