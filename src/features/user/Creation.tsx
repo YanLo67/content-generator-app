@@ -9,7 +9,8 @@ import IdeaPostCard from "../../components/post/IdeaPostCard";
 import { Textarea } from "../../components/ui/textarea";
 import { differenceInDays } from "date-fns";
 import AlertPopup from "../../components/AlertPopup";
-import { extractTextFromFile } from "../../utils/extractTextFromFile";
+import { ExtractTextFromFile } from "../../utils/extractTextFromFile";
+import DocumentList from "../../components/DocumentsList";
 import {
   WRITING_STYLE_OPTIONS,
   DEFAULT_WRITING_STYLE,
@@ -60,6 +61,9 @@ export default function Creation() {
   const [error, setError] = useState<string | null>(null);
   const [fileText, setFileText] = useState("");
 
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [isFetchingTranscript, setIsFetchingTranscript] = useState(false);
+
   // Nouveaux états pour les filtres et le tri
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -81,12 +85,49 @@ export default function Creation() {
   useEffect(() => {
     if (uploadedFile) {
       const processFile = async () => {
-        const text = await extractTextFromFile(uploadedFile);
+        const text = await ExtractTextFromFile(uploadedFile);
         setFileText((prevText) => `${prevText}\n\n${text}`.trim());
       };
       processFile();
     }
   }, [uploadedFile]);
+
+  const handleFetchTranscript = async () => {
+    if (!youtubeUrl.trim()) return;
+    setIsFetchingTranscript(true);
+    setError(null);
+    try {
+      const functionUrl =
+        "https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/get-youtube-transcript";
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Vous devez être connecté.");
+
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ videoUrl: youtubeUrl }),
+      });
+
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(data.error || "La récupération a échoué.");
+
+      // On ajoute la transcription à la zone de texte principale
+      setTextAreaContent((prevText) =>
+        `${prevText}\n\n--- TRANSCRIPTION YOUTUBE ---\n${data.transcript}`.trim()
+      );
+      setYoutubeUrl(""); // On vide le champ URL
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsFetchingTranscript(false);
+    }
+  };
 
   // Charge les posts existants (peut être filtré par "Idée" ou non, selon votre préférence)
   const fetchPosts = async () => {
@@ -178,7 +219,7 @@ export default function Creation() {
         return true;
       }
 
-      const documentText = await extractTextFromFile(file);
+      const documentText = await ExtractTextFromFile(file);
 
       const response = await fetch(
         "https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/embed-document",
@@ -553,7 +594,7 @@ export default function Creation() {
           Création de posts
         </h2>
         <div className="flex-grow flex flex-col justify-center">
-          {isGenerating || generatedPost || error ? (
+          {isGenerating || generatedPost ? (
             // --- BLOC 1 : AFFICHER LE RÉSULTAT ---
             <div className="flex-1 bg-white rounded-lg border p-4 flex flex-col min-h-0">
               <h4 className="font-semibold text-gray-700 mb-2 flex-shrink-0">
@@ -591,67 +632,100 @@ export default function Creation() {
             </div>
           ) : (
             // --- BLOC 2 : AFFICHER LA ZONE DE SAISIE ---
-            <div className="w-full flex-shrink-0 bg-white p-4 rounded-lg border">
-              <DocumentInput
-                onTextChange={setTypedText}
-                onFileChange={(file) => {
-                  setUploadedFile(file);
-                  setFileIsSaved(false);
-                }}
-                onFileSave={handleSaveFile}
-              />
+            <div>
+              <div className="w-full flex-shrink-0 bg-white p-4 rounded-lg border">
+                <DocumentInput
+                  onTextChange={setTypedText}
+                  onFileChange={(file) => {
+                    setUploadedFile(file);
+                    setFileIsSaved(false);
+                  }}
+                  onFileSave={handleSaveFile}
+                />
 
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Choisir le style d'écriture :
-                </label>
-                <div className="flex gap-2">
-                  {WRITING_STYLE_OPTIONS.map((style) => (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    À partir d'une URL YouTube
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="Collez l'URL de la vidéo YouTube..."
+                      value={youtubeUrl}
+                      onChange={(e) => setYoutubeUrl(e.target.value)}
+                      className="flex-1 p-2 border border-gray-300 rounded-md text-sm"
+                    />
                     <button
-                      key={style}
-                      onClick={() => setWritingStyle(style)}
-                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                        writingStyle === style
-                          ? "bg-blue-600 text-white font-semibold"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
+                      onClick={handleFetchTranscript}
+                      disabled={isFetchingTranscript}
+                      className="px-4 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 disabled:bg-red-300 text-sm"
                     >
-                      {style}
+                      {isFetchingTranscript ? "..." : "Extraire"}
                     </button>
-                  ))}
-                </div>
-              </div>
+                  </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Choisissez une intention :
-                </label>
-                <div className="flex gap-2">
-                  {["Par défaut", "Éduquer", "Inspirer", "Promouvoir"].map(
-                    (int) => (
-                      <button
-                        key={int}
-                        onClick={() => setIntention(int)}
-                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                          intention === int
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-200 hover:bg-gray-300"
-                        }`}
-                      >
-                        {int}
-                      </button>
-                    )
+                  {error && (
+                    <p className="text-red-500 text-xs mt-2">{error}</p>
                   )}
                 </div>
-              </div>
 
-              <button
-                className="mt-4 w-full px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
-                disabled={isGenerating || (!typedText.trim() && !uploadedFile)}
-                onClick={handleGeneratePost}
-              >
-                {isGenerating ? "Génération..." : "Transformer avec l'IA"}
-              </button>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Choisir le style d'écriture :
+                  </label>
+                  <div className="flex gap-2">
+                    {WRITING_STYLE_OPTIONS.map((style) => (
+                      <button
+                        key={style}
+                        onClick={() => setWritingStyle(style)}
+                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                          writingStyle === style
+                            ? "bg-blue-600 text-white font-semibold"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                      >
+                        {style}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Choisissez une intention :
+                  </label>
+                  <div className="flex gap-2">
+                    {["Par défaut", "Éduquer", "Inspirer", "Promouvoir"].map(
+                      (int) => (
+                        <button
+                          key={int}
+                          onClick={() => setIntention(int)}
+                          className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                            intention === int
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-200 hover:bg-gray-300"
+                          }`}
+                        >
+                          {int}
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  className="mt-4 w-full px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
+                  disabled={
+                    isGenerating || (!typedText.trim() && !uploadedFile)
+                  }
+                  onClick={handleGeneratePost}
+                >
+                  {isGenerating ? "Génération..." : "Transformer avec l'IA"}
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 mt-6">
+                <DocumentList />
+              </div>
             </div>
           )}
         </div>

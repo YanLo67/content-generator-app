@@ -9,7 +9,7 @@ function cleanExtractedText(text: string): string {
     .trim();
 }
 
-export async function extractTextFromFile(file: File): Promise<string> {
+export async function ExtractTextFromFile(file: File): Promise<string> {
   const ext = file.name.split(".").pop()?.toLowerCase();
 
   let rawText = "";
