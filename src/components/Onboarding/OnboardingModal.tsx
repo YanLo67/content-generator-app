@@ -108,7 +108,7 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
         .insert(postsToInsert);
       if (insertError) throw insertError;
     } catch (error: any) {
-      alert(`Une erreur est survenue : ${error.message}`);
+      alert(`Une erreur est survenue aaaaaa : ${error.message}`);
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -144,10 +144,8 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
         Authorization: `Bearer ${session.access_token}`,
         "Content-Type": "application/json",
       },
-      // On envoie les thèmes et les données de base du formulaire
       body: JSON.stringify({
         themes: generatedThemes,
-        formData: formData,
       }),
     });
 

@@ -132,7 +132,7 @@ export default function DocumentInput({
       {/* --- Section pour l'écriture de texte --- */}
       <textarea
         className="w-full h-full p-2 border border-gray-300 rounded-lg resize-none min-h-[100px] focus:ring-1 focus:ring-blue-500"
-        placeholder="Uploadez un fichier ou écrivez directement votre texte ici..."
+        placeholder="Uploadez un fichier ou copier coller votre texte ici..."
         value={typedText}
         onChange={handleTextChange}
       />

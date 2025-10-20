@@ -5,7 +5,7 @@ import ProfileField from "../../components/ProfileField";
 import Section from "../../components/Section";
 import GeneralProfileInfo from "../../components/GeneralProfileInfo";
 
-// L'interface Persona complète
+// L'interface Persona complète (inchangée)
 interface Persona {
   user_profile: {
     who: string;
@@ -66,7 +66,10 @@ export default function Profile() {
   const [persona, setPersona] = useState<Persona | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"persona" | "general">("persona");
+  const [profileData, setProfileData] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"userProfile" | "targetAudience">(
+    "userProfile"
+  );
 
   useEffect(() => {
     if (!user) {
@@ -76,14 +79,17 @@ export default function Profile() {
     const fetchProfileData = async () => {
       setIsLoading(true);
       try {
-        const { data: profile, error } = await supabase
+        const { data, error } = await supabase
           .from("profiles")
-          .select("persona_data")
+          .select("*")
           .eq("id", user.id)
           .single();
-        if (error && error.code !== "PGRST116") throw error;
-        if (profile?.persona_data) {
-          setPersona(profile.persona_data);
+        if (error) throw error;
+        if (data) {
+          setProfileData(data); // On stocke toutes les infos
+          if (data.persona_data) {
+            setPersona(data.persona_data); // On stocke le persona séparément
+          }
         }
       } catch (error) {
         console.error("Erreur lors de la récupération du profil:", error);
@@ -94,6 +100,33 @@ export default function Profile() {
     fetchProfileData();
   }, [user]);
 
+  const handleStyleChange = (newStyle: string) => {
+    console.log(newStyle);
+    setProfileData((prev: any) => ({
+      ...prev,
+      default_writing_style: newStyle,
+    }));
+  };
+
+  const handleCustomStyleSave = async (newDescription: string) => {
+    if (!user) return;
+    try {
+      await supabase
+        .from("profiles")
+        .update({ custom_writing_style: newDescription })
+        .eq("id", user.id);
+      setProfileData((prev: any) => ({
+        ...prev,
+        custom_writing_style: newDescription,
+        default_writing_style: newDescription, // On le sélectionne par défaut
+      }));
+    } catch (error) {
+      alert("Erreur de sauvegarde du style personnalisé.");
+      console.error(error);
+    }
+  };
+
+  // La fonction handleChange reste inchangée
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -133,24 +166,36 @@ export default function Profile() {
     });
   };
 
+  // La fonction handleSave reste inchangée
   const handleSave = async () => {
-    if (!user || !persona) return;
+    if (!user || !profileData) return;
     setIsSaving(true);
     try {
+      // Le style d'écriture est déjà correctement défini dans 'profileData.default_writing_style'
+      // grâce au 'onChange' du <select>.
       const { error } = await supabase
         .from("profiles")
-        .update({ persona_data: persona })
+        .update({
+          persona_data: persona,
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
+          job: profileData.job,
+          goal: profileData.goal,
+          audience: profileData.audience,
+          tone: profileData.tone,
+          gender: profileData.gender,
+          default_writing_style: profileData.default_writing_style,
+        })
         .eq("id", user.id);
       if (error) throw error;
       alert("Profil sauvegardé avec succès !");
-    } catch (error) {
-      alert("Erreur lors de la sauvegarde du profil.");
+    } catch (error: any) {
+      alert("Erreur lors de la sauvegarde.");
       console.error(error);
     } finally {
       setIsSaving(false);
     }
   };
-
   if (isLoading) {
     return <div className="p-6">Chargement du profil...</div>;
   }
@@ -163,7 +208,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-8 pb-24">
+    <div className="w-full bg-white p-6 rounded-lg shadow-md">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">
           Votre Persona Marketing
@@ -177,43 +222,48 @@ export default function Profile() {
         </button>
       </div>
 
-      {/* ▼▼▼ NEW TAB NAVIGATION ▼▼▼ */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button
-            onClick={() => setActiveTab("persona")}
+            onClick={() => setActiveTab("userProfile")}
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "persona"
+              activeTab === "userProfile"
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
           >
-            Persona Marketing
+            Profil Utilisateur
           </button>
           <button
-            onClick={() => setActiveTab("general")}
+            onClick={() => setActiveTab("targetAudience")}
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "general"
+              activeTab === "targetAudience"
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
           >
-            Informations Générales
+            Audience Cible
           </button>
         </nav>
       </div>
-      {/* ▼▼▼ CONDITIONAL CONTENT RENDERING ▼▼▼ */}
-      <div>
-        {activeTab === "persona" && (
-          <>
-            {/* Your entire Persona form goes here */}
-            <div className="flex justify-between items-center mb-8">
-              <p className="text-gray-600">
-                Modifiez les informations générées pour votre persona.
-              </p>
-            </div>
 
-            <Section title="Profil Utilisateur">
+      {/* --- Contenu des onglets --- */}
+      <div>
+        {/* --- Onglet Profil Utilisateur --- */}
+        {activeTab === "userProfile" && (
+          <div className="space-y-12">
+            <Section title="Votre Profil">
+              {/* Informations générales en premier */}
+              <div className="col-span-full">
+                <GeneralProfileInfo
+                  defaultStyle={profileData.default_writing_style}
+                  customStyle={profileData.custom_writing_style}
+                  onStyleChange={handleStyleChange}
+                  onCustomStyleSave={handleCustomStyleSave}
+                />
+              </div>
+
+              {/* Le reste des champs du profil utilisateur */}
               <ProfileField
                 label="Qui êtes-vous (Who)"
                 name="user_profile.who"
@@ -362,8 +412,13 @@ export default function Profile() {
                 isTextArea
               />
             </Section>
+          </div>
+        )}
 
-            <Section title="Audience Cible">
+        {/* --- Onglet Audience Cible --- */}
+        {activeTab === "targetAudience" && (
+          <div>
+            <Section title="Informations sur l'Audience Cible">
               <ProfileField
                 label="Problèmes"
                 name="target_audience.problems"
@@ -499,7 +554,7 @@ export default function Profile() {
               />
             </Section>
 
-            <Section title="Persona Détaillé">
+            <Section title="Persona Détaillé de l'Audience">
               <ProfileField
                 label="Verbatim de l'audience"
                 name="detailed_persona.verbatim"
@@ -543,11 +598,6 @@ export default function Profile() {
                 isTextArea
               />
             </Section>
-          </>
-        )}
-        {activeTab === "general" && (
-          <div>
-            <GeneralProfileInfo />
           </div>
         )}
       </div>

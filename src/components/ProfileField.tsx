@@ -3,11 +3,12 @@ import React from "react";
 interface ProfileFieldProps {
   label: string;
   name: string;
-  value: string | string[]; // La valeur peut être une chaîne ou un tableau de chaînes
+  value: string | string[];
   onChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => void;
-  isTextArea?: boolean; // Le '?' signifie que cette prop est optionnelle
+  isTextArea?: boolean;
+  placeholder?: string;
 }
 
 const ProfileField = ({
@@ -16,25 +17,39 @@ const ProfileField = ({
   onChange,
   name,
   isTextArea = false,
+  placeholder = "",
 }: ProfileFieldProps) => {
   const InputComponent = isTextArea ? "textarea" : "input";
 
+  // La valeur affichée est la même : on gère les tableaux de chaînes
   const displayValue = Array.isArray(value) ? value.join(", ") : value;
 
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-gray-500">
+      <label
+        htmlFor={name}
+        className="block text-sm font-semibold text-gray-700"
+      >
         {label}
       </label>
-      <InputComponent
-        type="text"
-        name={name}
-        id={name}
-        value={displayValue || ""}
-        onChange={onChange}
-        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-1 py-1"
-        rows={isTextArea ? 3 : undefined}
-      />
+      <div className="mt-1">
+        <InputComponent
+          type="text"
+          name={name}
+          id={name}
+          value={displayValue || ""}
+          onChange={onChange}
+          placeholder={placeholder}
+          className={`
+            block w-full rounded-lg border-gray-300 shadow-sm 
+            placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 
+            sm:text-sm transition duration-150 ease-in-out
+            px-3 py-2 
+            ${isTextArea ? "resize-y" : ""}
+          `}
+          rows={isTextArea ? 4 : undefined} // Un peu plus de hauteur par défaut pour les textarea
+        />
+      </div>
     </div>
   );
 };

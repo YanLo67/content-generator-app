@@ -1,6 +1,10 @@
 import pdfjsLib from "./pdfWorkerSetup";
 import mammoth from "mammoth";
 
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
 function cleanExtractedText(text: string): string {
   return text
     .replace(/\s+/g, " ")           

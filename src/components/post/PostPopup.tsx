@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import type { Post } from "../../types/Post";
 import { PostStatus } from "../../constants/postStatus";
 import { differenceInDays } from "date-fns";
+import { FiCalendar, FiX } from "react-icons/fi";
 
 type Props = {
   post: Post;
@@ -36,6 +37,11 @@ const getThemeColor = (mainTheme: string) => {
 };
 
 const getLifecycleInfo = (post: Post): { color: string; text: string } => {
+  if (post.status !== "Idée") {
+    return { color: "bg-gray-400", text: "Actif" };
+  }
+
+  // Le reste de la logique ne s'applique que pour les "Idées".
   const postAgeInDays = differenceInDays(
     new Date(),
     new Date(post.last_status_date)
@@ -56,6 +62,9 @@ export default function PostModalContent({
   const [status, setStatus] = useState(post.status);
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [newScheduledDate, setNewScheduledDate] = useState("");
 
   const statusStyle = getStatusStyle(status);
   const lifecycle = getLifecycleInfo(post);
@@ -78,6 +87,27 @@ export default function PostModalContent({
       onClose();
     }
     setIsLoading(false);
+  };
+
+  const handleScheduleSave = async () => {
+    if (!newScheduledDate) return;
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from("posts")
+        .update({
+          scheduled_at: newScheduledDate,
+          status: PostStatus.APublier, // On met à jour le statut logiquement
+        })
+        .eq("id", post.id);
+      if (error) throw error;
+      onUpdate(); // Rafraîchit la liste parente
+    } catch (error) {
+      alert("Erreur lors de la planification.");
+    } finally {
+      setIsLoading(false);
+      setIsScheduling(false);
+    }
   };
 
   const updatePost = async (newContent: string) => {
@@ -241,30 +271,71 @@ export default function PostModalContent({
                       }
                     )}
                   </div>
-                  {post.scheduled_at && (
+                  {isScheduling ? (
+                    // --- VUE 1 : L'utilisateur est en train de choisir une date ---
                     <div className="flex items-center gap-2">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                      <input
+                        type="datetime-local"
+                        onChange={(e) => setNewScheduledDate(e.target.value)}
+                        className="flex-1 p-2 border border-gray-300 rounded-md text-sm"
+                      />
+                      <button
+                        onClick={() => setIsScheduling(false)}
+                        className="px-3 py-2 text-sm bg-gray-200 rounded-md"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                      Publication prévue le{" "}
-                      {new Date(post.scheduled_at).toLocaleDateString("fr-FR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                        Annuler
+                      </button>
+                      <button
+                        onClick={handleScheduleSave}
+                        disabled={!newScheduledDate}
+                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md"
+                      >
+                        Sauvegarder
+                      </button>
                     </div>
+                  ) : post.scheduled_at ? (
+                    // --- VUE 2 : Une date est déjà définie ---
+                    <div
+                      className={`flex items-center justify-between p-2 rounded-md border ${
+                        post.status === "Publié"
+                          ? "bg-green-50 border-green-200"
+                          : "bg-orange-50 border-orange-200"
+                      }`}
+                    >
+                      <div
+                        className={`flex items-center gap-2 text-sm font-semibold ${
+                          post.status === "Publié"
+                            ? "text-green-800"
+                            : "text-orange-800"
+                        }`}
+                      >
+                        <FiCalendar />
+                        <span>
+                          {post.status === "Publié"
+                            ? "Publié le"
+                            : "Publication prévue le"}{" "}
+                          {/* On utilise bien post.scheduled_at pour la date */}
+                          {new Date(post.scheduled_at).toLocaleDateString(
+                            "fr-FR",
+                            {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    // --- VUE 3 : Aucune date n'est définie ---
+                    <button
+                      onClick={() => setIsScheduling(true)}
+                      className="w-full p-2 border-2 border-dashed border-gray-300 rounded-md text-gray-500 hover:bg-gray-100 hover:border-gray-400"
+                    >
+                      + Planifier une publication
+                    </button>
                   )}
                 </div>
               </div>

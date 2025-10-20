@@ -3,6 +3,7 @@ export const WRITING_STYLE_OPTIONS = [
   "Justin Welsh",
   "Ruben Hassid",
   "Chris Donnelly",
+  "Mon Style Personnalisé",
 ] as const; 
 
 export const DEFAULT_WRITING_STYLE = WRITING_STYLE_OPTIONS[0]; 
