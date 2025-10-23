@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import type { Post } from "../../types/Post";
 import IdeaPostCard from "../post/IdeaPostCard";
 import { differenceInDays } from "date-fns";

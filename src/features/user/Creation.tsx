@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import PostUp from "../../components/post/PostPopup";
 import Modal from "../../components/Modal";
 import { useAuth } from "../../hooks/useAuth";
@@ -18,19 +18,6 @@ export default function Creation() {
   const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
   const [showRedAlert, setShowRedAlert] = useState(false);
   const [redPostsToDelete, setRedPostsToDelete] = useState<Post[]>([]);
-
-  const getLifecycleStatus = (post: Post): "Vert" | "Orange" | "Rouge" => {
-    if (post.status !== "Idée") {
-      return "Vert"; // Un post qui n'est plus une "Idée" n'est plus considéré comme inactif.
-    }
-    const postAgeInDays = differenceInDays(
-      new Date(),
-      new Date(post.last_status_date)
-    );
-    if (postAgeInDays <= 14) return "Vert";
-    if (postAgeInDays <= 29) return "Orange";
-    return "Rouge";
-  };
 
   const handleFomoGeneration = async (
     fomoTargetPost: Post,

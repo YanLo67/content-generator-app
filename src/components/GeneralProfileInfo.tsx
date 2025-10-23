@@ -1,13 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { supabase } from "../lib/supabase";
-import {
-  WRITING_STYLE_OPTIONS,
-  DEFAULT_WRITING_STYLE,
-  type WritingStyle,
-} from "../configs/constants";
+import { WRITING_STYLE_OPTIONS, type WritingStyle } from "../configs/constants";
 import Modal from "./Modal";
-
-const CUSTOM_STYLE_LABEL = "Mon Style Personnalisé";
 
 interface GeneralProfileInfoProps {
   defaultStyle: WritingStyle | string;

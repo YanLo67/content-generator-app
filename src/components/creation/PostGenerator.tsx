@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import DocumentInput from "../DocumentInput";
 import {
@@ -25,31 +25,22 @@ export default function PostGenerator({
 }: PostGeneratorProps) {
   const [textAreaContent, setTextAreaContent] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [extractedFileText, setExtractedFileText] = useState("");
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const [fileIsSaved, setFileIsSaved] = useState(false);
   const [intention, setIntention] = useState("Par défaut");
   const [writingStyle, setWritingStyle] = useState<WritingStyle>(
     DEFAULT_WRITING_STYLE
   );
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [isFetchingTranscript, setIsFetchingTranscript] = useState(false);
+  // const [youtubeUrl, setYoutubeUrl] = useState("");
+  // const [isFetchingTranscript, setIsFetchingTranscript] = useState(false);
   const [generatedPost, setGeneratedPost] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [isExtractingThemes, setIsExtractingThemes] = useState(false);
-  const [extractedThemes, setExtractedThemes] = useState<any[]>([]);
-  const [finalGeneratedPosts, setFinalGeneratedPosts] = useState<
-    { theme: any; post: string }[]
-  >([]);
 
   const handleFullGenerationProcess = async (fileName: string) => {
     const topic =
       "Identifie les 4 thématiques les plus importantes de ce document.";
     setIsGenerating(true);
     setError(null);
-    setExtractedThemes([]);
 
     try {
       const {
@@ -75,7 +66,6 @@ export default function PostGenerator({
       const themes = await themesResponse.json();
       if (!themes || themes.length === 0)
         throw new Error("Aucun thème n'a pu être extrait.");
-      setExtractedThemes(themes);
 
       console.log(themes);
 
@@ -96,7 +86,7 @@ export default function PostGenerator({
       const results = await Promise.all(postPromises);
 
       // --- ÉTAPE 3 : Sauvegarder les posts générés ---
-      const postsToInsert = themes.map((theme: any, index: number) => ({
+      const postsToInsert = themes.map((index: number) => ({
         content: results[index].post || "Erreur de génération pour ce thème.",
         // On pourrait ajouter les thèmes ici si les colonnes existent
         user_id: user.id,
@@ -115,7 +105,6 @@ export default function PostGenerator({
       setError(err.message);
     } finally {
       setIsGenerating(false);
-      setIsExtractingThemes(false);
     }
   };
 
@@ -126,23 +115,6 @@ export default function PostGenerator({
       setWritingStyle(profile.default_writing_style);
     }
   }, [profile]);
-
-  useEffect(() => {
-    if (uploadedFile) {
-      const processFile = async () => {
-        try {
-          const text = await ExtractTextFromFile(uploadedFile);
-          setExtractedFileText(text);
-        } catch (error) {
-          console.error(error);
-          setError((error as Error).message);
-        }
-      };
-      processFile();
-    } else {
-      setExtractedFileText("");
-    }
-  }, [uploadedFile]);
 
   const handleSaveFile = async (file: File): Promise<boolean> => {
     if (!file || !user) return false;
@@ -168,7 +140,6 @@ export default function PostGenerator({
         }
       );
       if (!response.ok) throw new Error("L'embedding a échoué.");
-      setFileIsSaved(true);
       setSelectedFileName(file.name);
       return true;
     } catch (err) {
@@ -340,7 +311,6 @@ export default function PostGenerator({
     setError(null);
     setTextAreaContent("");
     setUploadedFile(null);
-    setFileIsSaved(false);
     setSelectedFileName(null);
   };
 

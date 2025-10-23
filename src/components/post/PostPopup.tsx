@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import type { Post } from "../../types/Post";
 import { PostStatus } from "../../constants/postStatus";
 import { differenceInDays } from "date-fns";
-import { FiCalendar, FiX } from "react-icons/fi";
+import { FiCalendar } from "react-icons/fi";
 
 type Props = {
   post: Post;
