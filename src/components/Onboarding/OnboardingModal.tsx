@@ -39,6 +39,7 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
     goal: "",
     audience: "",
     tone: "tutoiement",
+    gender: "masculin" as GenderOption,
   });
   const [savingMessage] = useState("Finalisation en cours...");
   const [newTheme, setNewTheme] = useState("");
@@ -46,6 +47,8 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedThemes, setGeneratedThemes] = useState<string[]>([]);
   const [generationError, setGenerationError] = useState<string | null>(null);
+
+  type GenderOption = "masculin" | "feminin" | "neutre";
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -78,9 +81,15 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
       // Sauvegarder le persona dans le profil
       await supabase
         .from("profiles")
-        .update({ persona_data: personaData, onboarding_completed: true })
+        .update({
+          persona_data: personaData,
+          onboarding_completed: true,
+          tone: formData.tone,
+          gender: formData.gender,
+        })
         .eq("id", user.id);
       // Insérer les nouveaux posts
+
       const postsToInsert = generatedPosts.map(
         (postObject: {
           content: string;
@@ -99,7 +108,7 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
         .insert(postsToInsert);
       if (insertError) throw insertError;
     } catch (error: any) {
-      alert(`Une erreur est survenue : ${error.message}`);
+      alert(`Une erreur est survenue aaaaaa : ${error.message}`);
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -135,10 +144,8 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
         Authorization: `Bearer ${session.access_token}`,
         "Content-Type": "application/json",
       },
-      // On envoie les thèmes et les données de base du formulaire
       body: JSON.stringify({
         themes: generatedThemes,
-        formData: formData,
       }),
     });
 
@@ -271,6 +278,42 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
                   placeholder="Ex: Trouver de nouveaux clients, partager mon expertise pour construire ma marque personnelle, recruter des talents..."
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quel genre préférez-vous pour la rédaction ?
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {" "}
+                  {(["masculin", "feminin", "neutre"] as GenderOption[]).map(
+                    (option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({ ...prev, gender: option }))
+                        }
+                        className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
+                          formData.gender === option
+                            ? "border-blue-600 bg-blue-50"
+                            : "border-gray-300 bg-white hover:bg-gray-50"
+                        }`}
+                      >
+                        <p className="font-medium text-sm text-gray-800 capitalize">
+                          {" "}
+                          {option}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {" "}
+                          {option === "masculin" && "Rédaction au masculin."}
+                          {option === "feminin" && "Rédaction au féminin."}
+                          {option === "neutre" &&
+                            "Utilisation de l'écriture inclusive."}
+                        </p>
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex justify-end">

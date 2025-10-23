@@ -50,26 +50,37 @@ export default function Calendrier() {
     if (!destination) return;
 
     const postId = parseInt(draggableId);
-    const newDate =
-      destination.droppableId === "unscheduled"
-        ? null
-        : destination.droppableId;
 
+    // 1. Déterminer la nouvelle date ET le nouveau statut
+    const isUnscheduled = destination.droppableId === "unscheduled";
+    const newDate = isUnscheduled ? null : destination.droppableId;
+
+    // On utilise une condition : "À publier" si on programme, sinon on remet à "À faire"
+    const newStatus = isUnscheduled ? PostStatus.Afaire : PostStatus.APublier;
+
+    // 2. Mettre à jour l'affichage local (mise à jour optimiste)
     setPosts((prevPosts) =>
       prevPosts.map((post) =>
-        post.id === postId ? { ...post, scheduled_at: newDate } : post
+        post.id === postId
+          ? { ...post, scheduled_at: newDate, status: newStatus }
+          : post
       )
     );
 
+    // 3. Sauvegarder les deux changements dans la base de données
     const { error } = await supabase
       .from("posts")
-      .update({ scheduled_at: newDate })
+      .update({
+        scheduled_at: newDate,
+        status: newStatus,
+      })
       .eq("id", postId);
 
+    // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
+
     if (error) {
-      console.error("Erreur :", error.message);
-      // Optionnel : restaurer l'état précédent en cas d'erreur
-      fetchPosts();
+      console.error("Erreur lors de la mise à jour :", error.message);
+      fetchPosts(); // En cas d'erreur, on recharge les données pour annuler le changement
     }
   };
 
