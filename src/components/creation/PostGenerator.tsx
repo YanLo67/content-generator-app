@@ -85,10 +85,14 @@ export default function PostGenerator({
 
       const results = await Promise.all(postPromises);
 
+      console.log(results);
+
       // --- ÉTAPE 3 : Sauvegarder les posts générés ---
-      const postsToInsert = themes.map((index: number) => ({
+      const postsToInsert = themes.map((_: any, index: number) => ({
         content: results[index].post || "Erreur de génération pour ce thème.",
-        // On pourrait ajouter les thèmes ici si les colonnes existent
+        // Vous pouvez aussi récupérer les thèmes ici si vous le souhaitez :
+        main_theme: themes[index].main_theme,
+        sub_theme: themes[index].sub_theme,
         user_id: user.id,
         status: "Idée",
       }));

@@ -13,6 +13,8 @@ import OnboardingModal from "./components/Onboarding/OnboardingModal";
 import Logout from "./features/auth/Logout";
 import SignUp from "./features/auth/signup";
 import AppTour from "./components/AppTour";
+import { useWindowSize } from "./hooks/useWindowSize";
+import MobileNotSupported from "./components/MobileNotSupported";
 
 function App() {
   const { user, loading } = useAuth();
@@ -59,6 +61,13 @@ function App() {
       setRunTour(true);
     }, 200);
   };
+
+  const { width } = useWindowSize();
+  const MOBILE_BREAKPOINT = 768; // 768px est une limite standard
+
+  if (width && width < MOBILE_BREAKPOINT) {
+    return <MobileNotSupported />;
+  }
 
   if (loading) {
     return <div>Chargement...</div>;

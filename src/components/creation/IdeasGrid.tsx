@@ -65,7 +65,10 @@ export default function IdeasGrid({
   }, [posts, searchTerm, statusFilter, sortOrder]);
 
   return (
-    <aside className="w-2/3 border-r border-gray-200 p-4 flex flex-col bg-white">
+    <aside
+      className="w-2/3 border-r border-gray-200 p-4 flex flex-col bg-white"
+      id="tour-step-2"
+    >
       <div className="flex-shrink-0 mb-4 sticky top-0 bg-white/80 backdrop-blur-sm py-2 z-10">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-800">

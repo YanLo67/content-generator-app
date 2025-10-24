@@ -10,54 +10,67 @@ interface AppTourProps {
 const TOUR_STEPS: Step[] = [
   {
     target: "#tour-step-1",
-    content: "C'est ici que vous commencerez...",
-    title: "La page Création",
-    placement: "auto",
+    content:
+      "Voici l'onglet 'Création', votre centre de commande principal pour générer de nouvelles idées de posts.",
+    title: "Page Création",
+    placement: "right",
     disableBeacon: true,
   },
   {
     target: "#tour-step-2",
-    content: "Le contenu de chaque page s'affichera ici.",
-    title: "Votre espace de travail",
-    placement: "auto",
+    content:
+      "C'est ici que toutes vos idées apparaîtront. Vous pouvez les filtrer par statut (Vert, Orange, Rouge) ou les rechercher.",
+    title: "Grille des Idées",
+    placement: "right",
+    disableBeacon: true,
   },
   {
     target: "#tour-step-3",
     content:
-      "Une fois vos idées créées, vous les retrouverez sur la page suivante.",
-    title: "Vos Idées",
-    placement: "auto",
+      "Utilisez cette zone pour générer du contenu. Vous pouvez écrire une idée  ou même uploader un document.",
+    title: "L'Assistant de Contenu",
+    placement: "left",
+    disableBeacon: true,
   },
   {
     target: "#tour-step-4",
     content:
-      "Une fois vos idées créées, vous les retrouverez sur la page suivante.",
-    title: "Vos Idées",
-    placement: "auto",
+      "La page 'Posts' vous permet de gérer tout votre contenu sous forme de tableau Kanban (Idée, À faire, En cours, A publié, Publié).",
+    title: "Page Posts (Kanban)",
+    placement: "right",
+    disableBeacon: true,
   },
   {
-    target: "#tour-step-5", // Doit être sur la page /user/posts
-    content: "C'est ici que tous vos posts sont listés.",
-    title: "Gestion des Posts",
-    placement: "auto",
+    target: "#tour-step-5",
+    content:
+      "Bienvenue sur la page 'Calendrier', où vous pouvez planifier visuellement toutes vos publications.",
+    title: "Page Calendrier",
+    placement: "right",
+    disableBeacon: true,
   },
   {
-    target: "#tour-step-6", // Doit être sur la page /user/calendar
-    content: "C'est ici que tous vos posts sont listés.",
-    title: "Gestion des Posts",
-    placement: "auto",
+    target: "#tour-step-6",
+    content:
+      "Cette barre latérale contient tous vos posts qui sont prêts à être planifiés. Il suffit de les glisser-déposer sur le calendrier.",
+    title: "Posts à Planifier",
+    placement: "right",
+    disableBeacon: true,
   },
   {
-    target: "#tour-step-7", // Doit être sur la page /user/calendar
-    content: "C'est ici que tous vos posts sont listés.",
-    title: "Gestion des Posts",
-    placement: "auto",
+    target: "#tour-step-7",
+    content:
+      "Voici votre calendrier éditorial. Vous pouvez naviguer entre les vues 'Mois' et 'Semaine' et voir tous vos posts programmés.",
+    title: "Votre Calendrier",
+    placement: "left",
+    disableBeacon: true,
   },
   {
-    target: "#tour-step-8", // Doit être sur la page /user/calendar
-    content: "C'est ici que tous vos posts sont listés.",
-    title: "Gestion des Posts",
-    placement: "auto",
+    target: "#tour-step-8",
+    content:
+      "Enfin, la page 'Profil'. Un persona marketing complet a été généré par l'IA en fonction de vos informations. N'hésitez pas à le personnaliser !",
+    title: "Votre Profil (Persona)",
+    placement: "right",
+    disableBeacon: true,
   },
 ];
 

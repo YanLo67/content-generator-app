@@ -76,8 +76,6 @@ export default function Calendrier() {
       })
       .eq("id", postId);
 
-    // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
-
     if (error) {
       console.error("Erreur lors de la mise à jour :", error.message);
       fetchPosts(); // En cas d'erreur, on recharge les données pour annuler le changement
