@@ -277,7 +277,14 @@ export default function Profile() {
         {activeTab === "userProfile" && (
           <div className="space-y-12">
             <Section title="Votre Profil">
+              {/* Description pour le Profil Utilisateur */}
+              <p className=" text-sm text-gray-500 -mt-4 col-span-full ">
+                Cette section est le cerveau de l'IA. Elle lui indique qui vous
+                êtes, vos valeurs, et votre mission pour qu'elle puisse rédiger
+                en adoptant votre voix.
+              </p>
               {/* Informations générales en premier */}
+
               <div className="col-span-full">
                 <GeneralProfileInfo
                   defaultStyle={profileData.default_writing_style}
@@ -289,91 +296,91 @@ export default function Profile() {
 
               {/* Le reste des champs du profil utilisateur */}
               <ProfileField
-                label="Qui êtes-vous (Who)"
+                label="Qui êtes-vous"
                 name="user_profile.who"
                 value={persona.user_profile?.who}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Valeurs (Values)"
+                label="Vos valeurs"
                 name="user_profile.values"
                 value={persona.user_profile?.values}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Rêve (Dream)"
+                label="Vos rêves"
                 name="user_profile.dream"
                 value={persona.user_profile?.dream}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Objectif (Goal)"
+                label="Vos objectifs"
                 name="user_profile.goal"
                 value={persona.user_profile?.goal}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Opinion Impopulaire"
+                label="Vos opinions impopulaires"
                 name="user_profile.unpopular_opinion"
                 value={persona.user_profile?.unpopular_opinion}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Croyance (Belief)"
+                label="Vos croyances"
                 name="user_profile.belief"
                 value={persona.user_profile?.belief}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Mission"
+                label="Vos missions"
                 name="user_profile.mission"
                 value={persona.user_profile?.mission}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Entreprise (Company)"
+                label="Votre Entreprise"
                 name="user_profile.company"
                 value={persona.user_profile?.company}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Industrie"
+                label="Votre Industrie"
                 name="user_profile.industry"
                 value={persona.user_profile?.industry}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Produit/Service"
+                label="Vos Produits/Services"
                 name="user_profile.product"
                 value={persona.user_profile?.product}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Proposition de valeur (Value Prop)"
+                label="Vos Propositions de valeur"
                 name="user_profile.value_prop"
                 value={persona.user_profile?.value_prop}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Caractéristiques (Features)"
+                label="Vos caractéristiques"
                 name="user_profile.features"
                 value={persona.user_profile?.features}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Bénéfices (Benefits)"
+                label="Vos Bénéfices"
                 name="user_profile.benefits"
                 value={persona.user_profile?.benefits}
                 onChange={handleChange}
@@ -387,49 +394,49 @@ export default function Profile() {
                 isTextArea
               />
               <ProfileField
-                label="Thèmes (Topics)"
+                label="Vos thèmes"
                 name="user_profile.topics"
                 value={persona.user_profile?.topics}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Perspective"
+                label="Vos perspectives"
                 name="user_profile.perspective"
                 value={persona.user_profile?.perspective}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Idéologie"
+                label="Vos Idéologies"
                 name="user_profile.ideology"
                 value={persona.user_profile?.ideology}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Histoires (Stories)"
+                label="Votre Histoires"
                 name="user_profile.stories"
                 value={persona.user_profile?.stories}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Étapes de vie (Milestones)"
+                label="Votre Étapes de vie"
                 name="user_profile.life_milestones"
                 value={persona.user_profile?.life_milestones}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Défis surmontés"
+                label="Vos Défis surmontés"
                 name="user_profile.challenges_overcome"
                 value={persona.user_profile?.challenges_overcome}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Causes défendues (Advocacies)"
+                label="Vos Causes défendues"
                 name="user_profile.advocacies"
                 value={persona.user_profile?.advocacies}
                 onChange={handleChange}
@@ -441,136 +448,141 @@ export default function Profile() {
 
         {/* --- Onglet Audience Cible --- */}
         {activeTab === "targetAudience" && (
-          <div>
+          <div className="space-y-12">
             <Section title="Informations sur l'Audience Cible">
+              <p className="text-sm text-gray-500 -mt-4 col-span-full ">
+                Cette section définit pour qui vous écrivez. L'IA l'utilise pour
+                adapter le message aux problèmes, frustrations et aspirations de
+                votre audience.
+              </p>
               <ProfileField
-                label="Problèmes"
+                label="Leurs Problèmes"
                 name="target_audience.problems"
                 value={persona.target_audience?.problems}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Douleur si non résolu"
+                label="Leurs Douleurs si non résolu"
                 name="target_audience.pain_if_unsolved"
                 value={persona.target_audience?.pain_if_unsolved}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Frustration"
+                label="Leurs Frustrations"
                 name="target_audience.frustration"
                 value={persona.target_audience?.frustration}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Douleur secrète"
+                label="Leurs Douleurs secrètes"
                 name="target_audience.secret_pain"
                 value={persona.target_audience?.secret_pain}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Peurs (Fears)"
+                label="Leurs Peurs"
                 name="target_audience.fears"
                 value={persona.target_audience?.fears}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Opinion requise"
+                label="Leurs Opinions requises"
                 name="target_audience.required_opinion"
                 value={persona.target_audience?.required_opinion}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Obstacles"
+                label="Leurs Obstacles"
                 name="target_audience.obstacles"
                 value={persona.target_audience?.obstacles}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Croyance (Belief)"
+                label="Leurs Croyances"
                 name="target_audience.belief"
                 value={persona.target_audience?.belief}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Croyance limitante"
+                label="Leurs Croyances limitantes"
                 name="target_audience.limiting_belief"
                 value={persona.target_audience?.limiting_belief}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Ennemi commun"
+                label="Leurs Ennemis commun"
                 name="target_audience.common_enemy"
                 value={persona.target_audience?.common_enemy}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Opinion forte"
+                label="Leurs Opinions forte"
                 name="target_audience.strong_opinion"
                 value={persona.target_audience?.strong_opinion}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Résultat souhaité"
+                label="Leurs Résultats souhaités"
                 name="target_audience.desired_result"
                 value={persona.target_audience?.desired_result}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Rêve à atteindre"
+                label="Leurs Rêves à atteindre"
                 name="target_audience.dream_to_achieve"
                 value={persona.target_audience?.dream_to_achieve}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Rêve au-delà des problèmes"
+                label="Leurs Rêves au-delà des problèmes"
                 name="target_audience.dream_beyond_problems"
                 value={persona.target_audience?.dream_beyond_problems}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Vision idéale du monde"
+                label="Leurs Visions idéale du monde"
                 name="target_audience.ideal_world_vision"
                 value={persona.target_audience?.ideal_world_vision}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Valeurs (Values)"
+                label="Leurs Valeurs"
                 name="target_audience.values"
                 value={persona.target_audience?.values}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Déclencheurs ICP"
+                label="Leurs Déclencheurs ICP"
                 name="target_audience.icp_triggers"
                 value={persona.target_audience?.icp_triggers}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Déclencheurs d'action"
+                label="Leurs Déclencheurs d'action"
                 name="target_audience.action_triggers"
                 value={persona.target_audience?.action_triggers}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Déclencheurs d'achat"
+                label="Leurs Déclencheurs d'achat"
                 name="target_audience.purchase_triggers"
                 value={persona.target_audience?.purchase_triggers}
                 onChange={handleChange}
@@ -580,42 +592,42 @@ export default function Profile() {
 
             <Section title="Persona Détaillé de l'Audience">
               <ProfileField
-                label="Verbatim de l'audience"
+                label="Leurs Verbatim de l'audience"
                 name="detailed_persona.verbatim"
                 value={persona.detailed_persona?.verbatim}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Perception du secteur"
+                label="Leurs Perception du secteur"
                 name="detailed_persona.sector_perception"
                 value={persona.detailed_persona?.sector_perception}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Processus de décision"
+                label="Leurs Processus de décision"
                 name="detailed_persona.decision_process"
                 value={persona.detailed_persona?.decision_process}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Aspirations futures"
+                label="Leurs Aspirations futures"
                 name="detailed_persona.future_aspirations"
                 value={persona.detailed_persona?.future_aspirations}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Réactions émotionnelles"
+                label="Leurs Réactions émotionnelles"
                 name="detailed_persona.emotional_reactions"
                 value={persona.detailed_persona?.emotional_reactions}
                 onChange={handleChange}
                 isTextArea
               />
               <ProfileField
-                label="Préférences de contenu"
+                label="Leurs Préférences de contenu"
                 name="detailed_persona.content_preferences"
                 value={persona.detailed_persona?.content_preferences}
                 onChange={handleChange}

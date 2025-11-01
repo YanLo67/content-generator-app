@@ -116,21 +116,27 @@ export default function PostModalContent({
 
     const { error } = await supabase
       .from("posts")
-      .update({ content: newContent, last_status_date: now })
+      .update({
+        content: newContent,
+        last_status_date: now,
+        status: status, // On sauvegarde le statut actuel de la popup
+      })
       .eq("id", post.id)
       .eq("user_id", userId);
+
+    setIsLoading(false); // On déplace le loading ici
 
     if (error) {
       console.error("Erreur lors de la mise à jour :", error.message);
     } else {
-      onUpdate();
+      onUpdate(); // On notifie le parent pour qu'il recharge la liste
     }
-    setIsLoading(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editedContent.trim()) {
-      updatePost(editedContent);
+      await updatePost(editedContent);
+      post.content = editedContent;
       setEditing(false);
     }
   };

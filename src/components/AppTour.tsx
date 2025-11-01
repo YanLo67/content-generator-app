@@ -35,7 +35,7 @@ const TOUR_STEPS: Step[] = [
   {
     target: "#tour-step-4",
     content:
-      "La page 'Posts' vous permet de gérer tout votre contenu sous forme de tableau Kanban (Idée, À faire, En cours, A publié, Publié).",
+      "La page 'Posts' vous permet de gérer tout votre contenu sous forme de tableau Kanban (Idée, À faire, En cours, À publier, Publié).",
     title: "Page Posts (Kanban)",
     placement: "right",
     disableBeacon: true,
@@ -67,8 +67,8 @@ const TOUR_STEPS: Step[] = [
   {
     target: "#tour-step-8",
     content:
-      "Enfin, la page 'Profil'. Un persona marketing complet a été généré par l'IA en fonction de vos informations. N'hésitez pas à le personnaliser !",
-    title: "Votre Profil (Persona)",
+      "Voici, la page 'Profil'. Un profil marketing complet a été généré par l'IA en fonction de vos informations. N'hésitez pas à le personnaliser !",
+    title: "Votre Profil",
     placement: "right",
     disableBeacon: true,
   },

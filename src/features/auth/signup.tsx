@@ -15,6 +15,7 @@ export default function SignUp() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    9;
   };
 
   const handleSignup = async (e: React.FormEvent) => {
