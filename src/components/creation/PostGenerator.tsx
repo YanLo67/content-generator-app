@@ -57,7 +57,11 @@ export default function PostGenerator({
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ fileName, topic }),
+        body: JSON.stringify({
+          fileName,
+          topic,
+          job: profile?.user_profile?.who,
+        }),
       });
       if (!themesResponse.ok) {
         const errData = await themesResponse.json();
