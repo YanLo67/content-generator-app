@@ -26,7 +26,7 @@ export default function PostGenerator({
   const [textAreaContent, setTextAreaContent] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const [intention, setIntention] = useState("Par défaut");
+  const [intention] = useState("Par défaut");
   const [writingStyle, setWritingStyle] = useState<WritingStyle>(
     DEFAULT_WRITING_STYLE
   );
@@ -419,8 +419,8 @@ export default function PostGenerator({
               </label>
               <div className="flex flex-wrap gap-2">
                 {WRITING_STYLE_OPTIONS
-                  // On filtre la liste avant de l'afficher
-                  .filter((style, index) => {
+                  // On remplace 'style' par '_' pour dire qu'on ne l'utilise pas ici
+                  .filter((_, index) => {
                     const isLastItem =
                       index === WRITING_STYLE_OPTIONS.length - 1;
 
