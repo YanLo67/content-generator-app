@@ -16,30 +16,69 @@ export default function GeneralProfileInfo({
   onStyleChange,
   onCustomStyleSave,
 }: GeneralProfileInfoProps) {
-  // Les états pour la modale restent ici, car ils sont internes au composant
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [sampleText, setSampleText] = useState("");
+
+  const [postInputs, setPostInputs] = useState({
+    post1: "",
+    post2: "",
+    post3: "",
+  });
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [generatedStyle, setGeneratedStyle] = useState("");
 
+  const handleInputChange = (
+    key: "post1" | "post2" | "post3",
+    value: string
+  ) => {
+    setPostInputs((prev) => ({ ...prev, [key]: value }));
+  };
+
+  // Vérifie si les 3 champs contiennent du texte
+  const areAllPostsFilled =
+    postInputs.post1.trim().length > 0 &&
+    postInputs.post2.trim().length > 0 &&
+    postInputs.post3.trim().length > 0;
+
   const handleAnalyzeStyle = async () => {
+    // 1. VALIDATION STRICTE : On bloque si les 3 ne sont pas remplis
+    if (!areAllPostsFilled) {
+      alert(
+        "Veuillez remplir les 3 exemples de posts pour garantir une analyse de qualité."
+      );
+      return;
+    }
+
     setIsAnalyzing(true);
     setGeneratedStyle("");
+
+    // 2. CONCATÉNATION : On envoie les 3 posts
+    const postsToAnalyze = [
+      postInputs.post1,
+      postInputs.post2,
+      postInputs.post3,
+    ]
+      .map((text, index) => `--- EXEMPLE DE POST ${index + 1} ---\n${text}`)
+      .join("\n\n");
+
     try {
       const functionUrl =
         "https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/analyze-writing-style";
       const {
         data: { session },
       } = await supabase.auth.getSession();
+
       if (!session) throw new Error("Session non trouvée.");
+
       const response = await fetch(functionUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ sampleTexts: sampleText }),
+        body: JSON.stringify({ sampleTexts: postsToAnalyze }),
       });
+
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setGeneratedStyle(data.style);
@@ -54,18 +93,16 @@ export default function GeneralProfileInfo({
     if (!generatedStyle) return;
     await onCustomStyleSave(generatedStyle);
     setIsModalOpen(false);
-    setSampleText("");
+    setPostInputs({ post1: "", post2: "", post3: "" });
     setGeneratedStyle("");
   };
 
-  // 1. On filtre la liste : on n'affiche "Mon Style Personnalisé" que s'il existe
   const allStyleOptions = WRITING_STYLE_OPTIONS.filter(
     (style) =>
       style !== "Mon Style Personnalisé" ||
       (style === "Mon Style Personnalisé" && customStyle)
   );
 
-  // 2. On détermine la valeur à afficher
   const selectValue =
     defaultStyle === customStyle && customStyle
       ? "Mon Style Personnalisé"
@@ -87,7 +124,6 @@ export default function GeneralProfileInfo({
             onChange={(e) => {
               const selectedValue = e.target.value;
               onStyleChange(selectedValue as WritingStyle);
-              console.log("aaaaa" + selectedValue);
             }}
             className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
           >
@@ -99,7 +135,7 @@ export default function GeneralProfileInfo({
           </select>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-3 py-2 text-sm bg-gray-200 rounded-md hover:bg-gray-300"
+            className="px-3 py-2 text-sm bg-gray-200 rounded-md hover:bg-gray-300 whitespace-nowrap"
           >
             {customStyle ? "Modifier mon style" : "Créer un style"}
           </button>
@@ -107,44 +143,84 @@ export default function GeneralProfileInfo({
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <div className="p-4">
-          <h3 className="text-lg font-bold mb-4">
+        <div className="p-4 max-h-[80vh] overflow-y-auto">
+          <h3 className="text-lg font-bold mb-2">
             Définir votre style d'écriture
           </h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Collez 1 à 3 de vos anciens posts. L'IA les analysera pour définir
-            votre style unique.
+          <p className="text-sm text-gray-600 mb-6">
+            Pour que l'IA capture votre ADN, veuillez coller{" "}
+            <b>3 posts différents</b> ci-dessous.
           </p>
-          <textarea
-            value={sampleText}
-            onChange={(e) => setSampleText(e.target.value)}
-            rows={10}
-            className="w-full p-2 border rounded-md"
-            placeholder="Collez vos textes ici..."
-          />
-          <div className="mt-4 flex justify-end">
+
+          <div className="space-y-4">
+            {/* POST 1 */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                Exemple de post #1 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={postInputs.post1}
+                onChange={(e) => handleInputChange("post1", e.target.value)}
+                rows={4}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Collez votre premier post ici..."
+              />
+            </div>
+
+            {/* POST 2 */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                Exemple de post #2 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={postInputs.post2}
+                onChange={(e) => handleInputChange("post2", e.target.value)}
+                rows={4}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Collez votre deuxième post ici..."
+              />
+            </div>
+
+            {/* POST 3 */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                Exemple de post #3 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={postInputs.post3}
+                onChange={(e) => handleInputChange("post3", e.target.value)}
+                rows={4}
+                className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Collez votre troisième post ici..."
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
             <button
               onClick={handleAnalyzeStyle}
-              disabled={isAnalyzing || !sampleText.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md"
+              // Désactivé tant que les 3 ne sont pas remplis ou que l'analyse tourne
+              disabled={isAnalyzing || !areAllPostsFilled}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
             >
-              {isAnalyzing ? "Analyse en cours..." : "Analyser mon style"}
+              {isAnalyzing ? "Analyse en cours..." : "Analyser ces 3 posts"}
             </button>
           </div>
+
           {generatedStyle && (
-            <div className="mt-4 p-4 bg-green-50 rounded-md">
-              <p className="text-sm text-gray-600 mb-2">
-                Style détecté par l'IA :
+            <div className="mt-6 p-4 bg-green-50 rounded-md border border-green-100 animate-in fade-in slide-in-from-bottom-2">
+              <p className="text-sm font-medium text-green-800 mb-2">
+                ✨ Style détecté par l'IA :
               </p>
-              <div className="bg-white p-3 rounded border text-sm text-gray-800">
+              <div className="bg-white p-3 rounded border border-green-200 text-sm text-gray-800 italic max-h-60 overflow-y-auto">
                 {generatedStyle}
               </div>
               <div className="text-center mt-4">
                 <button
                   onClick={handleSaveCustomStyle}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md"
+                  className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium shadow-sm"
                 >
-                  Utiliser et sauvegarder ce style
+                  Sauvegarder ce style
                 </button>
               </div>
             </div>

@@ -83,7 +83,7 @@ export default function Creation() {
         supabase
           .from("profiles")
           .select(
-            "id, persona_data, themes, default_writing_style, custom_writing_style, fomo_sentence"
+            "id, persona_data, themes, default_writing_style, custom_writing_style, fomo_sentence, tone"
           )
           .eq("id", user.id)
           .single(),

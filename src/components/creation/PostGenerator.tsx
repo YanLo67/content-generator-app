@@ -30,6 +30,7 @@ export default function PostGenerator({
   const [writingStyle, setWritingStyle] = useState<WritingStyle>(
     DEFAULT_WRITING_STYLE
   );
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   // const [youtubeUrl, setYoutubeUrl] = useState("");
   // const [isFetchingTranscript, setIsFetchingTranscript] = useState(false);
   const [generatedPost, setGeneratedPost] = useState("");
@@ -83,7 +84,12 @@ export default function PostGenerator({
             Authorization: `Bearer ${session.access_token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ theme, persona_data: profile.persona_data }),
+          body: JSON.stringify({
+            theme,
+            persona_data: profile.persona_data,
+            tone: profile.tone,
+            gender: profile.gender,
+          }),
         }).then((res) => res.json());
       });
 
@@ -243,13 +249,6 @@ export default function PostGenerator({
       let functionUrl = "";
       let requestBody = {};
 
-      let realWritingStyle;
-      if (writingStyle === WRITING_STYLE_OPTIONS[4]) {
-        realWritingStyle = profile.custom_writing_style;
-      } else {
-        realWritingStyle = writingStyle;
-      }
-
       if (selectedFileName) {
         functionUrl =
           "https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/generate-post-from-doc";
@@ -259,7 +258,7 @@ export default function PostGenerator({
           persona_data: profile.persona_data,
           tone: profile.tone,
           gender: profile.gender,
-          writingStyle: realWritingStyle,
+          writingStyle: writingStyle,
         };
       } else {
         functionUrl =
@@ -269,7 +268,8 @@ export default function PostGenerator({
           intention,
           persona_data: profile.persona_data,
           tone: profile.tone,
-          realWritingStyle,
+          writingStyle,
+          customWritingStyle: profile.custom_writing_style,
           gender: profile.gender,
         };
       }
@@ -295,6 +295,14 @@ export default function PostGenerator({
     }
   };
 
+  const handleSaveAndReset = async () => {
+    await handleSavePost(); // <--- INSEREZ VOTRE FONCTION DE SAUVEGARDE ICI
+    console.log("Post enregistré !");
+
+    setIsResetModalOpen(false);
+    handleReset(); // On reset une fois sauvegardé
+  };
+
   const handleSavePost = async () => {
     const contentToSave = generatedPost.trim();
     if (!contentToSave || !user) return;
@@ -312,6 +320,17 @@ export default function PostGenerator({
       alert("Erreur de sauvegarde.");
       console.error(err);
     }
+  };
+
+  const handleSafeReset = () => {
+    // Si c'est une erreur technique, on reset direct sans demander
+    if (error) {
+      handleReset();
+      return;
+    }
+
+    // Sinon, on ouvre le popup de confirmation
+    setIsResetModalOpen(true);
   };
 
   const handleReset = () => {
@@ -349,7 +368,7 @@ export default function PostGenerator({
           </div>
           <div className="flex justify-between items-center mt-2 pt-2 border-t">
             <button
-              onClick={handleReset}
+              onClick={handleSafeReset}
               className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
             >
               {error ? "Réessayer" : "Nouveau Post"}
@@ -399,22 +418,34 @@ export default function PostGenerator({
                 Style d'écriture :
               </label>
               <div className="flex flex-wrap gap-2">
-                {WRITING_STYLE_OPTIONS.map((style) => (
-                  <button
-                    key={style}
-                    onClick={() => setWritingStyle(style)}
-                    className={`px-3 py-1 text-sm rounded-full ${
-                      writingStyle === style
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    {style}
-                  </button>
-                ))}
+                {WRITING_STYLE_OPTIONS
+                  // On filtre la liste avant de l'afficher
+                  .filter((style, index) => {
+                    const isLastItem =
+                      index === WRITING_STYLE_OPTIONS.length - 1;
+
+                    // Si ce n'est pas le dernier élément, on l'affiche toujours
+                    if (!isLastItem) return true;
+
+                    // Si c'est le dernier, on l'affiche UNIQUEMENT si custom_writing_style existe
+                    return profile?.custom_writing_style;
+                  })
+                  .map((style) => (
+                    <button
+                      key={style}
+                      onClick={() => setWritingStyle(style)}
+                      className={`px-3 py-1 text-sm rounded-full ${
+                        writingStyle === style
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100"
+                      }`}
+                    >
+                      {style}
+                    </button>
+                  ))}
               </div>
             </div>
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Intention :
               </label>
@@ -435,7 +466,7 @@ export default function PostGenerator({
                   )
                 )}
               </div>
-            </div>
+            </div> */}
 
             <button
               onClick={handleGeneratePost}
@@ -452,6 +483,43 @@ export default function PostGenerator({
               onGenerateClick={handleFullGenerationProcess}
               onDeleteDocument={handleDeleteDocument} // Assurez-vous d'avoir cette fonction
             />
+          </div>
+        </div>
+      )}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* En-tête */}
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900">
+                Attention, post non enregistré
+              </h3>
+              <p className="mt-2 text-sm text-gray-600">
+                Si vous n’enregistrez pas le post, il sera perdu.
+              </p>
+            </div>
+
+            {/* Boutons d'action */}
+            <div className="bg-gray-50 px-6 py-4 flex flex-col gap-3 sm:flex-row-reverse sm:items-center border-t border-gray-100">
+              {/* 1. Enregistrer */}
+              <button
+                onClick={handleSaveAndReset}
+                className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+              >
+                Enregistrer le post
+              </button>
+
+              {/* 2. Continuer sans enregistrer */}
+              <button
+                onClick={() => {
+                  setIsResetModalOpen(false);
+                  handleReset();
+                }}
+                className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-red-600 bg-white border border-gray-300 hover:bg-red-50 hover:border-red-200 rounded-lg transition-colors"
+              >
+                Continuer sans enregistrer
+              </button>
+            </div>
           </div>
         </div>
       )}

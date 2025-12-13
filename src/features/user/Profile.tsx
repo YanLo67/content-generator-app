@@ -4,6 +4,8 @@ import { supabase } from "../../lib/supabase";
 import ProfileField from "../../components/ProfileField";
 import Section from "../../components/Section";
 import GeneralProfileInfo from "../../components/GeneralProfileInfo";
+import { AlertTriangle, Trash2, Loader2 } from "lucide-react"; // Assure-toi d'avoir lucide-react installé
+import { useNavigate } from "react-router-dom";
 
 // L'interface Persona complète (inchangée)
 interface Persona {
@@ -70,6 +72,28 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState<"userProfile" | "targetAudience">(
     "userProfile"
   );
+  const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleDelete = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Appel de ta fonction SQL "Nettoyage Manuel"
+      const { error } = await supabase.rpc("delete_user_account");
+
+      if (error) throw error;
+
+      // 2. Si succès SQL, on déconnecte la session locale
+      await supabase.auth.signOut();
+
+      // 3. Redirection vers la page d'accueil ou de login
+      navigate("/"); // Change l'URL selon tes besoins
+    } catch (error: any) {
+      console.error("Erreur lors de la suppression:", error);
+      alert("Erreur : " + error.message);
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -237,6 +261,63 @@ export default function Profile() {
         <h1 className="text-3xl font-bold text-gray-900">
           Votre Persona Marketing
         </h1>
+        <button
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+        >
+          <Trash2 size={16} />
+          Supprimer mon compte
+        </button>
+
+        {/* --- LA MODALE DE CONFIRMATION --- */}
+        {isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+              <div className="flex flex-col items-center text-center gap-4 mb-6">
+                <div className="p-3 bg-red-100 rounded-full text-red-600">
+                  <AlertTriangle size={32} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Zone de danger
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Êtes-vous sûr de vouloir supprimer votre compte ? <br />
+                    <strong>
+                      Toutes vos données (documents, profil) seront effacées
+                      immédiatement.
+                    </strong>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsOpen(false)}
+                  disabled={isLoading}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition-colors"
+                >
+                  Annuler
+                </button>
+
+                <button
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium flex items-center justify-center gap-2 transition-colors"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      Suppression...
+                    </>
+                  ) : (
+                    "Oui, tout supprimer"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <button
           onClick={handleSave}
           disabled={isSaving}

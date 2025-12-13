@@ -62,34 +62,42 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
   const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-    setIsSaving(true);
 
+    // On ferme la modale immédiatement pour ne pas bloquer l'utilisateur
     onClose();
+    setIsSaving(true);
 
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) throw new Error("Session non trouvée.");
-      // On lance les deux générations en parallèle
-      const personaPromise = generatePersona(session);
-      const postsPromise = generateFourPosts(session); // N'a plus besoin de personaData
-      const [personaData, generatedPosts] = await Promise.all([
-        personaPromise,
-        postsPromise,
-      ]);
-      // Sauvegarder le persona dans le profil
+
+      // 1. Sauvegarde des infos de base du formulaire
       await supabase
         .from("profiles")
         .update({
-          persona_data: personaData,
-          onboarding_completed: true,
           tone: formData.tone,
-          gender: formData.gender,
+          onboarding_completed: true,
         })
         .eq("id", user.id);
-      // Insérer les nouveaux posts
 
+      console.log("aaaaaaaaaaa");
+
+      // 2. GÉNÉRATION SÉQUENTIELLE : D'abord le Persona
+      const personaData = await generatePersona(session);
+
+      // 3. Sauvegarde du Persona dans le profil
+      await supabase
+        .from("profiles")
+        .update({ persona_data: personaData })
+        .eq("id", user.id);
+
+      // 4. GÉNÉRATION SÉQUENTIELLE : Ensuite les Posts (en utilisant le persona)
+      // Note : On passe 'personaData' à la fonction
+      const generatedPosts = await generateFourPosts(session, personaData);
+
+      // 5. Insertion des nouveaux posts
       const postsToInsert = generatedPosts.map(
         (postObject: {
           content: string;
@@ -103,13 +111,14 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
           status: "Idée",
         })
       );
+
       const { error: insertError } = await supabase
         .from("posts")
         .insert(postsToInsert);
+
       if (insertError) throw insertError;
     } catch (error: any) {
-      alert(`Une erreur est survenue aaaaaa : ${error.message}`);
-      console.error(error);
+      console.error("Erreur lors de la génération en arrière-plan:", error);
     } finally {
       setIsSaving(false);
     }
@@ -136,8 +145,9 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
   };
 
   // Fonction dédiée à la génération des 4 posts
-  const generateFourPosts = async (session: Session) => {
+  const generateFourPosts = async (session: Session, personaData: any) => {
     const functionUrl = `https://cifoadnztfjbdeyycrov.supabase.co/functions/v1/generate-four-posts`;
+
     const response = await fetch(functionUrl, {
       method: "POST",
       headers: {
@@ -146,6 +156,7 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
       },
       body: JSON.stringify({
         themes: generatedThemes,
+        persona_data: personaData, // On ajoute bien le persona ici
       }),
     });
 

@@ -39,7 +39,7 @@ export default function SignUp() {
       setError(error.message);
     } else {
       alert(
-        "Inscription réussie ! Un email de confirmation vous a été envoyé."
+        "Inscription réussie !\n\nUn email de confirmation vous a été envoyé.\nVeuillez cliquer sur le lien pour valider votre compte.\n\n(Pensez à vérifier vos spams/courriers indésirables si vous ne le recevez pas)"
       );
       navigate("/login");
     }
